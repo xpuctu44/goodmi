@@ -1,4 +1,5 @@
 from datetime import datetime, date, timezone, timedelta
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import RedirectResponse
@@ -6,14 +7,16 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Attendance, User, AllowedIP, ScheduleEntry
+from app.models import Attendance, User, AllowedIP, ScheduleEntry, Store
+from fastapi.responses import StreamingResponse
+import io
 
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
 
-def _get_current_user(request: Request, db: Session) -> User | None:
+def _get_current_user(request: Request, db: Session) -> Optional[User]:
     user_id = request.session.get("user_id")
     if not user_id:
         return None
@@ -181,6 +184,77 @@ def start_attendance(request: Request, db: Session = Depends(get_db)):
     db.add(record)
     db.commit()
     return RedirectResponse(url="/dashboard", status_code=status.HTTP_303_SEE_OTHER)
+
+
+# QR-based attendance: user scans QR that encodes a URL like /q/start/{token}
+@router.get("/q/start/{token}", include_in_schema=False)
+def qr_start(token: str, request: Request, db: Session = Depends(get_db)):
+    user = _get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
+
+    store = db.query(Store).filter(Store.qr_token == token, Store.is_active == True).first()
+    if not store:
+        return RedirectResponse(url="/dashboard?error=qr_invalid", status_code=status.HTTP_303_SEE_OTHER)
+
+    # Optional: ensure user belongs to the store if assigned
+    if user.store_id and user.store_id != store.id:
+        return RedirectResponse(url="/dashboard?error=qr_wrong_store", status_code=status.HTTP_303_SEE_OTHER)
+
+    # Start attendance (QR bypasses IP check as presence proof)
+    existing = (
+        db.query(Attendance)
+        .filter(Attendance.user_id == user.id, Attendance.ended_at.is_(None))
+        .first()
+    )
+    if existing:
+        return RedirectResponse(url="/dashboard", status_code=status.HTTP_303_SEE_OTHER)
+
+    now = _get_moscow_time()
+    record = Attendance(
+        user_id=user.id,
+        started_at=now,
+        work_date=now.date(),
+    )
+    db.add(record)
+    db.commit()
+    return RedirectResponse(url="/dashboard?ok=started", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.get("/q/stop/{token}", include_in_schema=False)
+def qr_stop(token: str, request: Request, db: Session = Depends(get_db)):
+    user = _get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
+
+    store = db.query(Store).filter(Store.qr_token == token, Store.is_active == True).first()
+    if not store:
+        return RedirectResponse(url="/dashboard?error=qr_invalid", status_code=status.HTTP_303_SEE_OTHER)
+
+    if user.store_id and user.store_id != store.id:
+        return RedirectResponse(url="/dashboard?error=qr_wrong_store", status_code=status.HTTP_303_SEE_OTHER)
+
+    active = (
+        db.query(Attendance)
+        .filter(Attendance.user_id == user.id, Attendance.ended_at.is_(None))
+        .first()
+    )
+    if not active:
+        return RedirectResponse(url="/dashboard", status_code=status.HTTP_303_SEE_OTHER)
+
+    now = _get_moscow_time()
+    active.ended_at = now
+
+    started_at = active.started_at
+    ended_at = active.ended_at
+    if started_at.tzinfo is None:
+        utc_tz = timezone.utc
+        started_at = started_at.replace(tzinfo=utc_tz)
+    elapsed_seconds = (ended_at - started_at).total_seconds()
+    active.hours = round(elapsed_seconds / 3600.0, 4)
+    db.add(active)
+    db.commit()
+    return RedirectResponse(url="/dashboard?ok=stopped", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.post("/attendance/stop", include_in_schema=False)

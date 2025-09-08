@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import RedirectResponse
@@ -34,9 +35,9 @@ def register_user(
     email: str = Form(...),
     password: str = Form(...),
     full_name: str = Form(""),
-    date_of_birth: date | None = Form(None),
+    date_of_birth: Optional[date] = Form(None),
     role: str = Form("employee"),
-    admin_secret: str | None = Form(None),
+    admin_secret: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
     role_normalized = role.lower()

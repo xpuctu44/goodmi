@@ -1,6 +1,8 @@
 from datetime import date, datetime, time, timedelta
-from typing import List
+from typing import List, Optional
 import io
+import secrets
+import qrcode
 
 from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import RedirectResponse, JSONResponse, StreamingResponse
@@ -17,14 +19,14 @@ router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
 
-def _current_user(request: Request, db: Session) -> User | None:
+def _current_user(request: Request, db: Session) -> Optional[User]:
     user_id = request.session.get("user_id")
     if not user_id:
         return None
     return db.get(User, user_id)
 
 
-def _admin_guard(request: Request, db: Session) -> User | None:
+def _admin_guard(request: Request, db: Session) -> Optional[User]:
     user = _current_user(request, db)
     if not user:
         return None
@@ -192,6 +194,7 @@ def admin_scheduling_table(
     request: Request,
     month: int = None,
     year: int = None,
+    store_id: int = None,
     db: Session = Depends(get_db)
 ):
     result = _ensure_admin(request, db)
@@ -227,17 +230,23 @@ def admin_scheduling_table(
             month_dates.append(current_date)
             current_date += timedelta(days=1)
 
-        # Получаем всех активных сотрудников
-        employees = db.query(User).filter(User.is_active == True).order_by(User.full_name).all()
-
         # Получаем все магазины
         stores = db.query(Store).all()
 
+        # Получаем всех активных сотрудников (с фильтром по магазину, если указан)
+        employees_query = db.query(User).filter(User.is_active == True)
+        if store_id:
+            employees_query = employees_query.filter(User.store_id == store_id)
+        employees = employees_query.order_by(User.full_name).all()
+
         # Получаем существующие смены на этот месяц
-        month_schedules = db.query(ScheduleEntry).filter(
+        schedules_query = db.query(ScheduleEntry).filter(
             ScheduleEntry.work_date >= first_day,
             ScheduleEntry.work_date <= last_day
-        ).all()
+        )
+        if store_id:
+            schedules_query = schedules_query.filter(ScheduleEntry.store_id == store_id)
+        month_schedules = schedules_query.all()
 
         # Группируем смены по сотруднику и дате
         schedule_dict = {}
@@ -322,6 +331,7 @@ def admin_scheduling_table(
             "years": years,
             "selected_month": month,
             "selected_year": year,
+            "selected_store_id": store_id,
             "message": "Интерактивная таблица планирования смен",
         },
     )
@@ -449,6 +459,7 @@ def admin_schedule(
     request: Request,
     month: int = None,
     year: int = None,
+    store_id: int = None,
     db: Session = Depends(get_db)
 ):
     result = _ensure_admin(request, db)
@@ -484,18 +495,24 @@ def admin_schedule(
             month_dates.append(current_date)
             current_date += timedelta(days=1)
 
-        # Получаем всех активных сотрудников
-        employees = db.query(User).filter(User.is_active == True).order_by(User.full_name).all()
-
         # Получаем все магазины
         stores = db.query(Store).all()
 
+        # Получаем всех активных сотрудников (с фильтром по магазину, если указан)
+        employees_query = db.query(User).filter(User.is_active == True)
+        if store_id:
+            employees_query = employees_query.filter(User.store_id == store_id)
+        employees = employees_query.order_by(User.full_name).all()
+
         # Получаем только опубликованные смены на этот месяц
-        month_schedules = db.query(ScheduleEntry).filter(
+        schedules_query = db.query(ScheduleEntry).filter(
             ScheduleEntry.work_date >= first_day,
             ScheduleEntry.work_date <= last_day,
             ScheduleEntry.published == True
-        ).all()
+        )
+        if store_id:
+            schedules_query = schedules_query.filter(ScheduleEntry.store_id == store_id)
+        month_schedules = schedules_query.all()
 
         # Группируем смены по сотруднику и дате
         schedule_dict = {}
@@ -555,6 +572,7 @@ def admin_schedule(
             "years": years,
             "selected_month": month,
             "selected_year": year,
+            "selected_store_id": store_id,
             "message": "Просмотр текущих графиков и расписаний",
         },
     )
@@ -1132,6 +1150,62 @@ def admin_stores(request: Request, db: Session = Depends(get_db)):
             "message": "Управление магазинами и филиалами",
         },
     )
+
+
+@router.post("/admin/stores/{store_id}/qr-regenerate", include_in_schema=False)
+def regenerate_store_qr(store_id: int, request: Request, db: Session = Depends(get_db)):
+    result = _ensure_admin(request, db)
+    if isinstance(result, RedirectResponse):
+        return result
+
+    store = db.get(Store, store_id)
+    if not store:
+        return RedirectResponse(url="/admin/stores?error=store_not_found", status_code=status.HTTP_303_SEE_OTHER)
+
+    store.qr_token = secrets.token_urlsafe(24)
+    db.add(store)
+    db.commit()
+    return RedirectResponse(url=f"/admin/stores?ok=qr_updated", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.get("/admin/stores/{store_id}/qr.png", include_in_schema=False)
+def store_qr_image(store_id: int, request: Request, db: Session = Depends(get_db)):
+    result = _ensure_admin(request, db)
+    if isinstance(result, RedirectResponse):
+        return result
+
+    store = db.get(Store, store_id)
+    if not store or not store.qr_token:
+        return RedirectResponse(url="/admin/stores?error=no_qr", status_code=status.HTTP_303_SEE_OTHER)
+
+    base_url = str(request.base_url).rstrip('/')
+    qr_url = f"{base_url}/q/start/{store.qr_token}"
+
+    img = qrcode.make(qr_url)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="image/png")
+
+
+@router.get("/admin/stores/{store_id}/qr-stop.png", include_in_schema=False)
+def store_qr_stop_image(store_id: int, request: Request, db: Session = Depends(get_db)):
+    result = _ensure_admin(request, db)
+    if isinstance(result, RedirectResponse):
+        return result
+
+    store = db.get(Store, store_id)
+    if not store or not store.qr_token:
+        return RedirectResponse(url="/admin/stores?error=no_qr", status_code=status.HTTP_303_SEE_OTHER)
+
+    base_url = str(request.base_url).rstrip('/')
+    qr_url = f"{base_url}/q/stop/{store.qr_token}"
+
+    img = qrcode.make(qr_url)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="image/png")
 
 
 @router.get("/admin/employees", include_in_schema=False)

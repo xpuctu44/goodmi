@@ -1,5 +1,5 @@
 from datetime import date, datetime, time
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import RedirectResponse
@@ -14,14 +14,14 @@ router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
 
-def _current_user(request: Request, db: Session) -> User | None:
+def _current_user(request: Request, db: Session) -> Optional[User]:
     user_id = request.session.get("user_id")
     if not user_id:
         return None
     return db.get(User, user_id)
 
 
-def _admin_guard(request: Request, db: Session) -> User | None:
+def _admin_guard(request: Request, db: Session) -> Optional[User]:
     user = _current_user(request, db)
     if not user:
         return None

@@ -71,6 +71,7 @@ class Store(Base):
     name = Column(String(200), unique=True, nullable=False, index=True)
     address = Column(Text, nullable=True)
     phone = Column(String(20), nullable=True)
+    qr_token = Column(String(64), unique=True, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
 
     employees = relationship("User", back_populates="store")

@@ -550,6 +550,10 @@
         <div class="alert alert-success">
           ✅ Статус сотрудника успешно изменен!
         </div>
+        {% elif request.query_params.get('ok') == 'qr_updated' %}
+        <div class="alert alert-success">
+          ✅ QR-коды успешно обновлены!
+        </div>
         {% elif request.query_params.get('error') == 'employee_not_found' %}
         <div class="alert alert-danger">
           ❌ Сотрудник не найден!
@@ -557,6 +561,10 @@
         {% elif request.query_params.get('error') == 'server_error' %}
         <div class="alert alert-danger">
           ❌ Произошла ошибка сервера!
+        </div>
+        {% elif request.query_params.get('error') == 'no_qr' %}
+        <div class="alert alert-danger">
+          ❌ QR-код не найден! Создайте QR-код для магазина.
         </div>
         {% endif %}
 
@@ -692,10 +700,19 @@
                   </option>
                   {% endfor %}
                 </select>
+                <label style="font-weight: bold; color: #333;">Магазин:</label>
+                <select name="store_id" style="padding: 5px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9em; min-width: 160px;">
+                  <option value="">Все магазины</option>
+                  {% for s in stores %}
+                  <option value="{{ s.id }}" {{ 'selected' if selected_store_id and s.id == selected_store_id else '' }}>
+                    {{ s.name }}
+                  </option>
+                  {% endfor %}
+                </select>
                 <button type="submit" class="btn btn-primary" style="padding: 5px 15px; font-size: 0.9em;">Показать</button>
               </form>
               <div style="margin-top: 8px; font-size: 0.85em; color: #666;">
-                📅 <strong>Текущий выбор:</strong> {{ months[selected_month-1].name if selected_month else 'Текущий месяц' }} {{ selected_year if selected_year else 'текущий год' }}
+                📅 <strong>Текущий выбор:</strong> {{ months[selected_month-1].name if selected_month else 'Текущий месяц' }} {{ selected_year if selected_year else 'текущий год' }} · 🏪 {{ (stores | selectattr('id','equalto', selected_store_id) | list)[0].name if selected_store_id else 'Все магазины' }}
               </div>
             </div>
 
@@ -874,10 +891,19 @@
                 </option>
                 {% endfor %}
               </select>
+              <label style="font-weight: bold; color: #333;">Магазин:</label>
+              <select name="store_id" style="padding: 5px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9em; min-width: 160px;">
+                <option value="">Все магазины</option>
+                {% for s in stores %}
+                <option value="{{ s.id }}" {{ 'selected' if selected_store_id and s.id == selected_store_id else '' }}>
+                  {{ s.name }}
+                </option>
+                {% endfor %}
+              </select>
               <button type="submit" class="btn btn-primary" style="padding: 5px 15px; font-size: 0.9em;">Показать</button>
             </form>
             <div style="margin-top: 8px; font-size: 0.85em; color: #666;">
-              📅 <strong>Текущий выбор:</strong> {{ months[selected_month-1].name if selected_month else 'Текущий месяц' }} {{ selected_year if selected_year else 'текущий год' }}
+              📅 <strong>Текущий выбор:</strong> {{ months[selected_month-1].name if selected_month else 'Текущий месяц' }} {{ selected_year if selected_year else 'текущий год' }} · 🏪 {{ (stores | selectattr('id','equalto', selected_store_id) | list)[0].name if selected_store_id else 'Все магазины' }}
             </div>
           </div>
 
@@ -1202,6 +1228,8 @@
                   <th>Название</th>
                   <th>Адрес</th>
                   <th>Телефон</th>
+                  <th>QR-коды</th>
+                  <th>Действия</th>
                 </tr>
               </thead>
               <tbody>
@@ -1210,6 +1238,33 @@
                   <td>{{ store.name }}</td>
                   <td>{{ store.address or 'Не указан' }}</td>
                   <td>{{ store.phone or 'Не указан' }}</td>
+                  <td>
+                    {% if store.qr_token %}
+                      <div style="display: flex; gap: 10px; align-items: center;">
+                        <div style="text-align: center;">
+                          <img src="/admin/stores/{{ store.id }}/qr.png" alt="QR Start" style="width: 60px; height: 60px; border: 1px solid #ddd;">
+                          <div style="font-size: 10px; margin-top: 2px;">Приход</div>
+                        </div>
+                        <div style="text-align: center;">
+                          <img src="/admin/stores/{{ store.id }}/qr-stop.png" alt="QR Stop" style="width: 60px; height: 60px; border: 1px solid #ddd;">
+                          <div style="font-size: 10px; margin-top: 2px;">Уход</div>
+                        </div>
+                      </div>
+                    {% else %}
+                      <span style="color: #666;">QR не создан</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if store.qr_token %}
+                      <form method="post" action="/admin/stores/{{ store.id }}/qr-regenerate" style="display: inline;">
+                        <button type="submit" class="btn btn-warning" style="font-size: 12px; padding: 4px 8px;">🔄 Обновить QR</button>
+                      </form>
+                    {% else %}
+                      <form method="post" action="/admin/stores/{{ store.id }}/qr-regenerate" style="display: inline;">
+                        <button type="submit" class="btn btn-primary" style="font-size: 12px; padding: 4px 8px;">📱 Создать QR</button>
+                      </form>
+                    {% endif %}
+                  </td>
                 </tr>
                 {% endfor %}
               </tbody>

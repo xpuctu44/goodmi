@@ -143,6 +143,17 @@ def run_sqlite_migrations(engine: Engine) -> None:
                 text("ALTER TABLE stores ADD COLUMN phone VARCHAR(20) NULL")
             )
 
+    # stores.qr_token column
+    if not _column_exists(engine, "stores", "qr_token"):
+        with engine.connect() as connection:
+            connection.execute(
+                text("ALTER TABLE stores ADD COLUMN qr_token VARCHAR(64) NULL")
+            )
+            # optional unique index for faster lookup and enforcing uniqueness
+            connection.execute(
+                text("CREATE UNIQUE INDEX IF NOT EXISTS ix_stores_qr_token ON stores(qr_token)")
+            )
+
     # users.web_username column
     if not _column_exists(engine, "users", "web_username"):
         with engine.connect() as connection:

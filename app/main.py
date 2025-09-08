@@ -32,9 +32,8 @@ app.include_router(admin_router)
 
 
 @app.get("/", include_in_schema=False)
-def index():
-    # Temporarily return simple response without session
-    return {"message": "Time Tracker API", "status": "running"}
+def index(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
 @app.on_event("startup")

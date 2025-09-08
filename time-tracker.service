@@ -1,0 +1,29 @@
+[Unit]
+Description=Time Tracker FastAPI Application
+After=network.target
+
+[Service]
+Type=exec
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/time-tracker
+Environment=PATH=/opt/time-tracker/venv/bin
+ExecStart=/opt/time-tracker/venv/bin/gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+RestartSec=10
+
+# Безопасность
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/time-tracker/data /opt/time-tracker/logs /opt/time-tracker/backups
+
+# Логирование
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=time-tracker
+
+[Install]
+WantedBy=multi-user.target
