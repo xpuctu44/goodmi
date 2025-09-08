@@ -1,0 +1,140 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ title or "Вход в систему" }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}" />
+    <style>
+      .login-container {
+        max-width: 400px;
+        margin: 50px auto;
+        padding: 40px 20px;
+      }
+      .login-title {
+        text-align: center;
+        font-size: 2em;
+        margin-bottom: 30px;
+        color: var(--accent);
+      }
+      .back-link {
+        display: inline-block;
+        margin-bottom: 20px;
+        color: var(--accent);
+        text-decoration: none;
+        font-size: 0.9em;
+      }
+      .back-link:hover {
+        text-decoration: underline;
+      }
+      .form-group {
+        margin-bottom: 20px;
+      }
+      .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: var(--fg);
+      }
+      .form-group input {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #22324a;
+        border-radius: 8px;
+        background: #0f1527;
+        color: var(--fg);
+        font-size: 1em;
+        transition: border-color 0.3s;
+      }
+      .form-group input:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+      .submit-button {
+        width: 100%;
+        padding: 15px;
+        background: var(--accent);
+        color: #04142b;
+        border: none;
+        border-radius: 8px;
+        font-size: 1.1em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+      .submit-button:hover {
+        background: #5a9cfe;
+      }
+      .register-link {
+        text-align: center;
+        margin-top: 30px;
+        padding: 20px;
+        background: var(--panel);
+        border-radius: 8px;
+        border: 1px solid #22324a;
+      }
+      .register-link a {
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 500;
+      }
+      .register-link a:hover {
+        text-decoration: underline;
+      }
+      .error-message {
+        background: rgba(220, 53, 69, 0.1);
+        border: 1px solid #dc3545;
+        color: #dc3545;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>🔑 Вход в систему</h1>
+    </header>
+    <main>
+      <div class="login-container">
+        <a href="/" class="back-link">← Вернуться на главную</a>
+        
+        <h2 class="login-title">Войти в аккаунт</h2>
+        
+        {% if error %}
+        <div class="error-message">
+          {{ error }}
+        </div>
+        {% endif %}
+        
+        <form method="post" action="/login">
+          <div class="form-group">
+            <label for="email">📧 Email адрес</label>
+            <input type="email" id="email" name="email" required placeholder="your@email.com" />
+          </div>
+          
+          <div class="form-group">
+            <label for="password">🔒 Пароль</label>
+            <input type="password" id="password" name="password" required placeholder="Введите пароль" />
+          </div>
+
+          <div class="form-group">
+            <label style="display: flex; align-items: center; gap: 10px;">
+              <input type="checkbox" id="remember_me" name="remember_me" value="1" />
+              <span>Запомнить меня</span>
+            </label>
+          </div>
+
+          <button type="submit" class="submit-button">
+            Войти в систему
+          </button>
+        </form>
+        
+        <div class="register-link">
+          <p>Нет аккаунта? <a href="/register">Зарегистрироваться</a></p>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>

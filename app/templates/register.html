@@ -1,0 +1,195 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ title or "Регистрация в системе" }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}" />
+    <style>
+      .register-container {
+        max-width: 500px;
+        margin: 30px auto;
+        padding: 40px 20px;
+      }
+      .register-title {
+        text-align: center;
+        font-size: 2em;
+        margin-bottom: 30px;
+        color: var(--accent);
+      }
+      .back-link {
+        display: inline-block;
+        margin-bottom: 20px;
+        color: var(--accent);
+        text-decoration: none;
+        font-size: 0.9em;
+      }
+      .back-link:hover {
+        text-decoration: underline;
+      }
+      .form-group {
+        margin-bottom: 20px;
+      }
+      .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: var(--fg);
+      }
+      .form-group input,
+      .form-group select {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #22324a;
+        border-radius: 8px;
+        background: #0f1527;
+        color: var(--fg);
+        font-size: 1em;
+        transition: border-color 0.3s;
+        box-sizing: border-box;
+      }
+      .form-group input:focus,
+      .form-group select:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+      .submit-button {
+        width: 100%;
+        padding: 15px;
+        background: var(--accent);
+        color: #04142b;
+        border: none;
+        border-radius: 8px;
+        font-size: 1.1em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.3s;
+        margin-top: 10px;
+      }
+      .submit-button:hover {
+        background: #5a9cfe;
+      }
+      .login-link {
+        text-align: center;
+        margin-top: 30px;
+        padding: 20px;
+        background: var(--panel);
+        border-radius: 8px;
+        border: 1px solid #22324a;
+      }
+      .login-link a {
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 500;
+      }
+      .login-link a:hover {
+        text-decoration: underline;
+      }
+      .error-message {
+        background: rgba(220, 53, 69, 0.1);
+        border: 1px solid #dc3545;
+        color: #dc3545;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        text-align: center;
+      }
+      .success-message {
+        background: rgba(40, 167, 69, 0.1);
+        border: 1px solid #28a745;
+        color: #28a745;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        text-align: center;
+      }
+      .role-description {
+        font-size: 0.85em;
+        color: var(--muted);
+        margin-top: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>👤 Регистрация в системе</h1>
+    </header>
+    <main>
+      <div class="register-container">
+        <a href="/" class="back-link">← Вернуться на главную</a>
+        
+        <h2 class="register-title">Создать аккаунт</h2>
+        
+        {% if error %}
+        <div class="error-message">
+          {{ error }}
+        </div>
+        {% endif %}
+        
+        {% if success %}
+        <div class="success-message">
+          ✅ Регистрация прошла успешно! Теперь вы можете войти в систему.
+        </div>
+        {% endif %}
+
+        <form method="post" action="/register">
+          <div class="form-group">
+            <label for="email">📧 Email адрес</label>
+            <input type="email" id="email" name="email" placeholder="your@email.com" required />
+          </div>
+          
+          <div class="form-group">
+            <label for="password">🔒 Пароль (минимум 6 символов)</label>
+            <input type="password" id="password" name="password" minlength="6" required placeholder="Введите пароль" />
+          </div>
+          
+          <div class="form-group">
+            <label for="full_name">👤 ФИО</label>
+            <input type="text" id="full_name" name="full_name" placeholder="Иванов Иван Иванович" />
+          </div>
+          
+          <div class="form-group">
+            <label for="date_of_birth">📅 Дата рождения</label>
+            <input type="date" id="date_of_birth" name="date_of_birth" />
+          </div>
+          
+          <div class="form-group">
+            <label for="roleSelect">🎭 Роль в системе</label>
+            <select name="role" id="roleSelect" onchange="toggleAdminSecret()">
+              <option value="employee">Сотрудник</option>
+              <option value="admin">Администратор</option>
+            </select>
+            <div class="role-description">
+              <strong>Сотрудник:</strong> может отмечать приход/уход и просматривать свои данные<br>
+              <strong>Администратор:</strong> полный доступ к системе, управление сотрудниками и отчеты
+            </div>
+          </div>
+          
+          <div class="form-group" id="adminSecretBlock" style="display:none">
+            <label for="admin_secret">🔐 Секретный код администратора</label>
+            <input type="password" id="admin_secret" name="admin_secret" placeholder="Введите секретный код" />
+          </div>
+          
+          <button type="submit" class="submit-button">
+            Зарегистрироваться
+          </button>
+        </form>
+        
+        <div class="login-link">
+          <p>Уже есть аккаунт? <a href="/login">Войти в систему</a></p>
+        </div>
+      </div>
+    </main>
+    
+    <script>
+      function toggleAdminSecret(){
+        var role = document.getElementById('roleSelect').value;
+        var block = document.getElementById('adminSecretBlock');
+        block.style.display = role === 'admin' ? 'block' : 'none';
+      }
+      toggleAdminSecret();
+    </script>
+  </body>
+</html>
+
+
