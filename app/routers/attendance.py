@@ -40,7 +40,77 @@ def _get_client_ip(request: Request) -> str:
 def _get_moscow_time() -> datetime:
     """Получает текущее время в московском часовом поясе (UTC+3)"""
     moscow_tz = timezone(timedelta(hours=3))
-    return datetime.now(moscow_tz)
+    moscow_time = datetime.now(moscow_tz)
+    # Convert to UTC for database storage
+    return moscow_time.astimezone(timezone.utc)
+
+
+def _to_moscow_time(utc_time: datetime) -> datetime:
+    """Конвертирует UTC время в московское время для отображения"""
+    if utc_time is None:
+        return None
+    moscow_tz = timezone(timedelta(hours=3))
+    if utc_time.tzinfo is None:
+        # Assume it's UTC if no timezone info
+        utc_time = utc_time.replace(tzinfo=timezone.utc)
+    return utc_time.astimezone(moscow_tz)
+
+
+def _calculate_total_work_time_today(user_id: int, db: Session, current_time: datetime = None) -> float:
+    """Подсчитывает общее время работы за сегодня, включая активную сессию"""
+    if current_time is None:
+        current_time = _get_moscow_time()
+    
+    # Convert current_time to Moscow timezone for date calculation
+    moscow_tz = timezone(timedelta(hours=3))
+    moscow_time = current_time.astimezone(moscow_tz)
+    today = moscow_time.date()
+    total_work_seconds = 0
+    
+    # Get all attendance records for today
+    today_records = (
+        db.query(Attendance)
+        .filter(
+            Attendance.user_id == user_id,
+            Attendance.work_date == today
+        )
+        .order_by(Attendance.started_at)
+        .all()
+    )
+    
+    # Calculate total time from all completed sessions
+    for record in today_records:
+        if record.ended_at is not None:
+            # This session is completed, add its duration
+            started_at = record.started_at
+            ended_at = record.ended_at
+            
+            # Handle timezone-aware and naive datetimes
+            if started_at.tzinfo is None:
+                utc_tz = timezone.utc
+                started_at = started_at.replace(tzinfo=utc_tz)
+            if ended_at.tzinfo is None:
+                utc_tz = timezone.utc
+                ended_at = ended_at.replace(tzinfo=utc_tz)
+                
+            session_seconds = (ended_at - started_at).total_seconds()
+            total_work_seconds += session_seconds
+        else:
+            # This is the active session, add time from start to now
+            started_at = record.started_at
+            if started_at.tzinfo is None:
+                utc_tz = timezone.utc
+                started_at = started_at.replace(tzinfo=utc_tz)
+            
+            # Ensure current_time is timezone-aware
+            if current_time.tzinfo is None:
+                utc_tz = timezone.utc
+                current_time = current_time.replace(tzinfo=utc_tz)
+            
+            current_session_seconds = (current_time - started_at).total_seconds()
+            total_work_seconds += current_session_seconds
+    
+    return total_work_seconds / 3600.0  # Convert to hours
 
 
 def _check_ip_allowed(request: Request, db: Session) -> bool:
@@ -111,6 +181,19 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             .all()
         )
 
+        # Get attendance records for the current month
+        attendance_records = (
+            db.query(Attendance)
+            .filter(
+                Attendance.user_id == user.id,
+                Attendance.work_date >= first_day,
+                Attendance.work_date <= last_day,
+                Attendance.ended_at.isnot(None)  # Only completed sessions
+            )
+            .order_by(Attendance.work_date, Attendance.started_at)
+            .all()
+        )
+
         # Create calendar data structure
         import calendar
         cal = monthcalendar(current_year, current_month)
@@ -121,6 +204,15 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         # Create schedule dictionary for quick lookup
         schedule_dict = {entry.work_date: entry for entry in employee_schedule}
 
+        # Create attendance dictionary for quick lookup
+        # Group attendance records by date
+        attendance_dict = {}
+        for attendance in attendance_records:
+            day_date = attendance.work_date
+            if day_date not in attendance_dict:
+                attendance_dict[day_date] = []
+            attendance_dict[day_date].append(attendance)
+
         # Build calendar weeks
         calendar_data = []
         for week in cal:
@@ -128,18 +220,37 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             for day in week:
                 if day == 0:
                     # Empty cell for days not in this month
-                    week_data.append({'day': '', 'schedule': None, 'is_empty': True})
+                    week_data.append({'day': '', 'schedule': None, 'attendance': [], 'is_empty': True})
                 else:
                     day_date = date(current_year, current_month, day)
                     schedule_entry = schedule_dict.get(day_date)
+                    day_attendance = attendance_dict.get(day_date, [])
+                    
+                    # Convert attendance times to Moscow timezone for display
+                    moscow_attendance = []
+                    for attendance in day_attendance:
+                        # Create a copy-like object with Moscow times
+                        moscow_att = type('AttendanceDisplay', (), {
+                            'started_at': _to_moscow_time(attendance.started_at),
+                            'ended_at': _to_moscow_time(attendance.ended_at),
+                            'hours': attendance.hours
+                        })()
+                        moscow_attendance.append(moscow_att)
+                    
                     week_data.append({
                         'day': day,
                         'date': day_date,
                         'schedule': schedule_entry,
+                        'attendance': moscow_attendance,
                         'is_empty': False,
                         'is_today': day_date == now.date()
                     })
             calendar_data.append(week_data)
+
+    # Calculate total work time for today
+    total_work_hours_today = 0
+    if user.role == "employee":
+        total_work_hours_today = _calculate_total_work_time_today(user.id, db)
 
     return templates.TemplateResponse(
         "dashboard.html",
@@ -148,7 +259,9 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "title": "Dashboard",
             "user": user,
             "is_active": bool(active),
-            "start_time": active.started_at if active else None,
+            "start_time": _to_moscow_time(active.started_at) if active else None,  # Moscow time for display
+            "start_time_utc": active.started_at if active else None,  # UTC time for JavaScript
+            "total_work_hours_today": total_work_hours_today,
             "employee_schedule": employee_schedule,
             "calendar_data": calendar_data,
             "russian_days": ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'] if user.role == "employee" else [],
@@ -166,22 +279,51 @@ def start_attendance(request: Request, db: Session = Depends(get_db)):
     if not _check_ip_allowed(request, db):
         return RedirectResponse(url="/dashboard?error=ip_not_allowed", status_code=status.HTTP_303_SEE_OTHER)
 
-    # If already started, just redirect
-    existing = (
+    now = _get_moscow_time()
+    # Convert to Moscow timezone for date calculation
+    moscow_tz = timezone(timedelta(hours=3))
+    moscow_time = now.astimezone(moscow_tz)
+    today = moscow_time.date()
+
+    # If already started today, just redirect
+    existing_active = (
         db.query(Attendance)
         .filter(Attendance.user_id == user.id, Attendance.ended_at.is_(None))
         .first()
     )
-    if existing:
+    if existing_active:
         return RedirectResponse(url="/dashboard", status_code=status.HTTP_303_SEE_OTHER)
 
-    now = _get_moscow_time()
-    record = Attendance(
-        user_id=user.id,
-        started_at=now,
-        work_date=now.date(),  # Используем дату из московского времени
+    # Check if there's a completed record for today that we can continue
+    existing_today = (
+        db.query(Attendance)
+        .filter(
+            Attendance.user_id == user.id, 
+            Attendance.work_date == today,
+            Attendance.ended_at.isnot(None)
+        )
+        .order_by(Attendance.ended_at.desc())
+        .first()
     )
-    db.add(record)
+
+    if existing_today:
+        # Continue the previous timer by creating a new session
+        # We don't modify the existing record, we create a new one
+        record = Attendance(
+            user_id=user.id,
+            started_at=now,
+            work_date=today,
+        )
+        db.add(record)
+    else:
+        # Create new record
+        record = Attendance(
+            user_id=user.id,
+            started_at=now,
+            work_date=today,
+        )
+        db.add(record)
+    
     db.commit()
     return RedirectResponse(url="/dashboard", status_code=status.HTTP_303_SEE_OTHER)
 
@@ -276,19 +418,56 @@ def stop_attendance(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(url="/dashboard", status_code=status.HTTP_303_SEE_OTHER)
 
     now = _get_moscow_time()
-    active.ended_at = now
-
-    # compute duration in hours - handle both timezone-aware and naive datetimes
-    started_at = active.started_at
-    ended_at = active.ended_at
-
-    # If started_at is naive, assume it's in UTC (since that's what datetime.utcnow() produces)
-    if started_at.tzinfo is None:
+    # Convert to Moscow timezone for date calculation
+    moscow_tz = timezone(timedelta(hours=3))
+    moscow_time = now.astimezone(moscow_tz)
+    today = moscow_time.date()
+    
+    # Calculate total work time for today including all previous sessions
+    total_work_seconds = 0
+    
+    # Get all attendance records for today
+    today_records = (
+        db.query(Attendance)
+        .filter(
+            Attendance.user_id == user.id,
+            Attendance.work_date == today
+        )
+        .order_by(Attendance.started_at)
+        .all()
+    )
+    
+    # Calculate total time from all completed sessions
+    for record in today_records:
+        if record.ended_at is not None:
+            # This session is completed, add its duration
+            started_at = record.started_at
+            ended_at = record.ended_at
+            
+            # Handle timezone-aware and naive datetimes
+            if started_at.tzinfo is None:
+                utc_tz = timezone.utc
+                started_at = started_at.replace(tzinfo=utc_tz)
+            if ended_at.tzinfo is None:
+                utc_tz = timezone.utc
+                ended_at = ended_at.replace(tzinfo=utc_tz)
+                
+            session_seconds = (ended_at - started_at).total_seconds()
+            total_work_seconds += session_seconds
+    
+    # Add current session time
+    current_started_at = active.started_at
+    if current_started_at.tzinfo is None:
         utc_tz = timezone.utc
-        started_at = started_at.replace(tzinfo=utc_tz)
-
-    elapsed_seconds = (ended_at - started_at).total_seconds()
-    active.hours = round(elapsed_seconds / 3600.0, 4)
+        current_started_at = current_started_at.replace(tzinfo=utc_tz)
+    
+    current_session_seconds = (now - current_started_at).total_seconds()
+    total_work_seconds += current_session_seconds
+    
+    # Update the current record
+    active.ended_at = now
+    active.hours = round(total_work_seconds / 3600.0, 4)
+    
     db.add(active)
     db.commit()
     return RedirectResponse(url="/dashboard", status_code=status.HTTP_303_SEE_OTHER)

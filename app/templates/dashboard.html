@@ -5,40 +5,54 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{ title or "Dashboard" }}</title>
     <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
       .dashboard-container {
         max-width: 800px;
         margin: 30px auto;
         padding: 20px;
       }
       .welcome-card {
-        background: var(--panel);
-        border-radius: 12px;
+        background: #f8f9fa;
+        border-radius: 8px;
         padding: 30px;
         margin-bottom: 30px;
-        border: 1px solid #22324a;
+        border: 1px solid #dee2e6;
       }
       .welcome-title {
         font-size: 1.8em;
         margin-bottom: 10px;
-        color: var(--accent);
+        color: #007bff;
       }
       .user-info {
-        color: var(--muted);
+        color: #666;
         margin-bottom: 20px;
       }
       .attendance-section {
-        background: var(--panel);
-        border-radius: 12px;
+        background: #f8f9fa;
+        border-radius: 8px;
         padding: 30px;
         margin-bottom: 30px;
-        border: 1px solid #22324a;
+        border: 1px solid #dee2e6;
         text-align: center;
       }
       .attendance-button {
-        background: var(--accent);
-        color: #04142b;
+        background: #007bff;
+        color: white;
         border: none;
-        border-radius: 12px;
+        border-radius: 8px;
         padding: 20px 40px;
         font-size: 1.3em;
         font-weight: 600;
@@ -47,7 +61,7 @@
         margin: 10px;
       }
       .attendance-button:hover {
-        background: #5a9cfe;
+        background: #0056b3;
         transform: translateY(-2px);
       }
       .attendance-button.stop {
@@ -58,21 +72,21 @@
         background: #c82333;
       }
       .time-info {
-        color: var(--muted);
+        color: #666;
         font-size: 1.1em;
         margin-top: 15px;
       }
       .admin-panel {
-        background: var(--panel);
-        border-radius: 12px;
+        background: #f8f9fa;
+        border-radius: 8px;
         padding: 30px;
         margin-bottom: 30px;
-        border: 1px solid #22324a;
+        border: 1px solid #dee2e6;
       }
       .admin-title {
         font-size: 1.5em;
         margin-bottom: 20px;
-        color: var(--accent);
+        color: #007bff;
         text-align: center;
       }
       .admin-grid {
@@ -82,19 +96,19 @@
         margin-top: 20px;
       }
       .admin-card {
-        background: #0f1527;
-        border: 1px solid #22324a;
+        background: white;
+        border: 1px solid #dee2e6;
         border-radius: 8px;
         padding: 20px;
         text-align: center;
         transition: all 0.3s;
       }
       .admin-card:hover {
-        border-color: var(--accent);
+        border-color: #007bff;
         transform: translateY(-2px);
       }
       .admin-card a {
-        color: var(--accent);
+        color: #007bff;
         text-decoration: none;
         font-weight: 500;
       }
@@ -125,8 +139,8 @@
       }
       .role-badge {
         display: inline-block;
-        background: var(--accent);
-        color: #04142b;
+        background: #007bff;
+        color: white;
         padding: 4px 12px;
         border-radius: 20px;
         font-size: 0.8em;
@@ -140,8 +154,8 @@
       .timer-display {
         font-family: 'Courier New', monospace;
         font-weight: bold;
-        color: var(--accent);
-        background: rgba(90, 156, 254, 0.1);
+        color: #007bff;
+        background: rgba(0, 123, 255, 0.1);
         padding: 5px 10px;
         border-radius: 5px;
         display: inline-block;
@@ -149,33 +163,42 @@
         text-align: center;
       }
       .calendar-day {
-        background: #0f1527;
-        border: 1px solid #22324a;
+        background: white;
+        border: 1px solid #dee2e6;
         border-radius: 6px;
         min-height: 80px;
         padding: 8px;
       }
       .calendar-day-today {
-        border-color: var(--accent);
-        box-shadow: 0 0 8px rgba(90, 156, 254, 0.3);
+        border-color: #007bff;
+        box-shadow: 0 0 8px rgba(0, 123, 255, 0.3);
       }
       .calendar-day-number {
         font-weight: bold;
         margin-bottom: 4px;
       }
       .calendar-day-number-today {
-        color: var(--accent);
+        color: #007bff;
       }
       .calendar-day-number-normal {
-        color: var(--muted);
+        color: #666;
+      }
+      .alert {
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+      }
+      .alert-danger {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
       }
     </style>
   </head>
   <body>
-    <header>
+    <div class="container">
       <h1>🕐 Time Tracker</h1>
-    </header>
-    <main>
+      
       <div class="dashboard-container">
         {% if not user %}
           <div class="welcome-card">
@@ -220,10 +243,10 @@
               {% if start_time %}
                 <div class="time-info">
                   Начало работы: {{ start_time.strftime('%H:%M') }}
-                  <div id="work-timer-employee" style="font-size: 1.2em; font-weight: bold; color: var(--accent); margin-top: 10px;">
-                    ⏱️ Текущее время работы: <span id="timer-display-employee" class="timer-display">00:00:00</span>
+                  <div id="work-timer-employee" style="font-size: 1.2em; font-weight: bold; color: #007bff; margin-top: 10px;">
+                    ⏱️ Общее время работы сегодня: <span id="timer-display-employee" class="timer-display">00:00:00</span>
                   </div>
-                  <div style="margin-top: 10px; font-size: 0.9em; color: var(--muted);">
+                  <div style="margin-top: 10px; font-size: 0.9em; color: #666;">
                     💼 Статус: <strong style="color: #28a745;">На работе</strong>
                   </div>
                 </div>
@@ -231,6 +254,18 @@
                 <div class="time-info">
                   📅 Готов к началу работы
                   <br>💼 Статус: <strong style="color: #6c757d;">Не на работе</strong>
+                </div>
+              {% endif %}
+              
+              <!-- Общее время работы за день -->
+              {% if total_work_hours_today > 0 %}
+                <div class="time-info" style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #007bff;">
+                  <div style="font-size: 1.1em; font-weight: bold; color: #007bff;">
+                    📊 Общее время работы сегодня: {{ "%.1f"|format(total_work_hours_today) }} ч
+                  </div>
+                  <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
+                    Включает все сессии работы за день
+                  </div>
                 </div>
               {% endif %}
             </div>
@@ -242,7 +277,7 @@
               <!-- Calendar Header -->
               <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 10px; margin-top: 20px;">
                 {% for day_name in russian_days %}
-                  <div style="text-align: center; font-weight: bold; color: var(--accent); padding: 10px 5px; background: #0f1527; border-radius: 6px;">
+                  <div style="text-align: center; font-weight: bold; color: #007bff; padding: 10px 5px; background: #f8f9fa; border-radius: 6px;">
                     {{ day_name }}
                   </div>
                 {% endfor %}
@@ -253,13 +288,25 @@
                 {% for week in calendar_data %}
                   {% for day_data in week %}
                     {% if day_data.is_empty %}
-                      <div style="background: #0a0e19; border: 1px solid #1a1f2e; border-radius: 6px; min-height: 80px; padding: 8px;"></div>
+                      <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; min-height: 80px; padding: 8px;"></div>
                     {% else %}
                       <div class="calendar-day {{ 'calendar-day-today' if day_data.is_today else 'calendar-day-normal' }}">
                         <div class="calendar-day-number {{ 'calendar-day-number-today' if day_data.is_today else 'calendar-day-number-normal' }}">
                           {{ day_data.day }}
                         </div>
-                        {% if day_data.schedule %}
+                        {% if day_data.attendance %}
+                          <!-- Показываем время прихода и ухода -->
+                          {% for attendance in day_data.attendance %}
+                            <div style="color: #28a745; font-weight: bold; font-size: 0.7em; margin-bottom: 2px;">
+                              📅 {{ attendance.started_at.strftime('%H:%M') }} - {{ attendance.ended_at.strftime('%H:%M') }}
+                            </div>
+                            {% if attendance.hours %}
+                              <div style="color: #007bff; font-size: 0.6em;">
+                                ⏱️ {{ "%.1f"|format(attendance.hours) }}ч
+                              </div>
+                            {% endif %}
+                          {% endfor %}
+                        {% elif day_data.schedule %}
                           {% if day_data.schedule.shift_type == 'off' %}
                             <div style="color: #dc3545; font-weight: bold; font-size: 0.8em;">Выходной</div>
                           {% elif day_data.schedule.shift_type == 'vacation' %}
@@ -270,20 +317,20 @@
                             <div style="color: #6c757d; font-weight: bold; font-size: 0.8em;">Выходной</div>
                           {% else %}
                             {% if day_data.schedule.start_time and day_data.schedule.end_time %}
-                              <div style="color: var(--accent); font-weight: bold; font-size: 0.8em;">
+                              <div style="color: #007bff; font-weight: bold; font-size: 0.8em;">
                                 {{ day_data.schedule.start_time.strftime('%H:%M') }}<br>{{ day_data.schedule.end_time.strftime('%H:%M') }}
                               </div>
                             {% else %}
-                              <div style="color: var(--muted); font-size: 0.8em;">Время не указано</div>
+                              <div style="color: #666; font-size: 0.8em;">Время не указано</div>
                             {% endif %}
                           {% endif %}
                           {% if day_data.schedule.notes %}
-                            <div style="font-size: 0.7em; color: var(--muted); margin-top: 2px; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ day_data.schedule.notes }}">
+                            <div style="font-size: 0.7em; color: #666; margin-top: 2px; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ day_data.schedule.notes }}">
                               {{ day_data.schedule.notes }}
                             </div>
                           {% endif %}
                         {% else %}
-                          <div style="color: var(--muted); font-size: 0.8em;">Нет смены</div>
+                          <div style="color: #666; font-size: 0.8em;">Нет смены</div>
                         {% endif %}
                       </div>
                     {% endif %}
@@ -292,7 +339,7 @@
               </div>
 
               {% if not employee_schedule %}
-                <div style="text-align: center; color: var(--muted); margin-top: 20px;">
+                <div style="text-align: center; color: #666; margin-top: 20px;">
                   На текущий месяц график еще не составлен
                 </div>
               {% endif %}
@@ -310,10 +357,10 @@
               {% if start_time %}
                 <div class="time-info">
                   Начало работы: {{ start_time.strftime('%H:%M') }}
-                  <div id="work-timer" style="font-size: 1.2em; font-weight: bold; color: var(--accent); margin-top: 10px;">
+                  <div id="work-timer" style="font-size: 1.2em; font-weight: bold; color: #007bff; margin-top: 10px;">
                     ⏱️ Текущее время работы: <span id="timer-display" class="timer-display">00:00:00</span>
                   </div>
-                  <div style="margin-top: 10px; font-size: 0.9em; color: var(--muted);">
+                  <div style="margin-top: 10px; font-size: 0.9em; color: #666;">
                     💼 Статус: <strong style="color: #28a745;">На работе</strong>
                   </div>
                 </div>
@@ -369,7 +416,7 @@
           </div>
         {% endif %}
       </div>
-    </main>
+    </div>
 
     <script>
       // Timer functionality for work time tracking
@@ -379,15 +426,20 @@
         const workTimer = document.getElementById('work-timer');
 
         if (timerDisplay && workTimer) {
-          // Get start time from server (passed from template)
-          const startTimeStr = '{{ start_time.isoformat() if start_time else "" }}';
+          // Get start time from server (UTC time for calculations)
+          const startTimeStr = '{{ start_time_utc.isoformat() if start_time_utc else "" }}';
 
           if (startTimeStr) {
-            const startTime = new Date(startTimeStr); // Time is already in correct timezone
+            const startTime = new Date(startTimeStr); // UTC time for calculations
             const now = new Date();
 
             // Calculate initial elapsed time
             let elapsedSeconds = Math.floor((now - startTime) / 1000);
+            
+            // Ensure elapsedSeconds is not negative
+            if (elapsedSeconds < 0) {
+              elapsedSeconds = 0;
+            }
 
             // Update timer every second
             setInterval(() => {
@@ -410,37 +462,50 @@
           }
         }
 
-        // Employee timer
+        // Employee timer - shows total work time for today
         const timerDisplayEmployee = document.getElementById('timer-display-employee');
         const workTimerEmployee = document.getElementById('work-timer-employee');
 
         if (timerDisplayEmployee && workTimerEmployee) {
-          // Get start time from server (passed from template)
-          const startTimeStr = '{{ start_time.isoformat() if start_time else "" }}';
+          // Get total work hours from server
+          const totalWorkHoursToday = {{ total_work_hours_today if total_work_hours_today else 0 }};
+          const startTimeStr = '{{ start_time_utc.isoformat() if start_time_utc else "" }}';
 
           if (startTimeStr) {
-            const startTime = new Date(startTimeStr); // Time is already in correct timezone
+            // Parse the start time correctly - it's in UTC from server
+            const startTime = new Date(startTimeStr);
             const now = new Date();
 
-            // Calculate initial elapsed time
-            let elapsedSeconds = Math.floor((now - startTime) / 1000);
+            // Calculate initial elapsed time for current session
+            let currentSessionSeconds = Math.floor((now - startTime) / 1000);
+            
+            // Ensure currentSessionSeconds is not negative
+            if (currentSessionSeconds < 0) {
+              currentSessionSeconds = 0;
+            }
+            
+            // Convert total work hours to seconds and add current session
+            // Ensure totalWorkHoursToday is a valid number
+            const totalWorkSecondsFromDB = Math.floor((totalWorkHoursToday || 0) * 3600);
+            let totalElapsedSeconds = totalWorkSecondsFromDB + currentSessionSeconds;
 
             // Update timer every second
             setInterval(() => {
-              elapsedSeconds++;
+              currentSessionSeconds++;
+              totalElapsedSeconds++;
 
-              const hours = Math.floor(elapsedSeconds / 3600);
-              const minutes = Math.floor((elapsedSeconds % 3600) / 60);
-              const seconds = elapsedSeconds % 60;
+              const hours = Math.floor(totalElapsedSeconds / 3600);
+              const minutes = Math.floor((totalElapsedSeconds % 3600) / 60);
+              const seconds = totalElapsedSeconds % 60;
 
               const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
               timerDisplayEmployee.textContent = timeString;
             }, 1000);
 
             // Initial display
-            const hours = Math.floor(elapsedSeconds / 3600);
-            const minutes = Math.floor((elapsedSeconds % 3600) / 60);
-            const seconds = elapsedSeconds % 60;
+            const hours = Math.floor(totalElapsedSeconds / 3600);
+            const minutes = Math.floor((totalElapsedSeconds % 3600) / 60);
+            const seconds = totalElapsedSeconds % 60;
             const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
             timerDisplayEmployee.textContent = timeString;
           }

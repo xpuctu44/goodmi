@@ -1,4 +1,4 @@
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from typing import List, Optional
 import io
 import secrets
@@ -13,6 +13,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 from app.database import get_db
 from app.models import User, ScheduleEntry, Store, Attendance, AllowedIP
+from app.routers.attendance import _get_current_user, _check_ip_allowed, _to_moscow_time
 
 
 router = APIRouter()
@@ -657,9 +658,49 @@ def admin_reports(
                 ScheduleEntry.published == True
             ).all()
 
-            # Рассчитываем статистику
-            total_hours = sum(att.hours or 0 for att in attendances)
-            working_shifts = len([att for att in attendances if att.hours and att.hours > 0])
+            # Рассчитываем статистику - правильно подсчитываем время за каждый день
+            total_hours = 0
+            working_shifts = 0
+            
+            # Группируем записи по дням
+            daily_attendance = {}
+            for att in attendances:
+                work_date = att.work_date
+                if work_date not in daily_attendance:
+                    daily_attendance[work_date] = []
+                daily_attendance[work_date].append(att)
+            
+            # Подсчитываем время для каждого дня
+            for work_date, day_attendances in daily_attendance.items():
+                # Сортируем записи по времени начала
+                day_attendances.sort(key=lambda x: x.started_at)
+                
+                # Подсчитываем общее время за день
+                day_total_seconds = 0
+                day_has_work = False
+                
+                for att in day_attendances:
+                    if att.ended_at is not None:
+                        # Завершенная сессия - добавляем её время
+                        started_at = att.started_at
+                        ended_at = att.ended_at
+                        
+                        # Handle timezone-aware and naive datetimes
+                        if started_at.tzinfo is None:
+                            utc_tz = timezone.utc
+                            started_at = started_at.replace(tzinfo=utc_tz)
+                        if ended_at.tzinfo is None:
+                            utc_tz = timezone.utc
+                            ended_at = ended_at.replace(tzinfo=utc_tz)
+                            
+                        session_seconds = (ended_at - started_at).total_seconds()
+                        day_total_seconds += session_seconds
+                        day_has_work = True
+                
+                if day_has_work:
+                    day_hours = day_total_seconds / 3600.0
+                    total_hours += day_hours
+                    working_shifts += 1
 
             # Считаем типы смен из расписания
             days_off = len([s for s in schedules if s.shift_type == 'off'])
@@ -811,8 +852,49 @@ def export_reports(
                 ScheduleEntry.published == True
             ).all()
 
-            total_hours = sum(att.hours or 0 for att in attendances)
-            working_shifts = len([att for att in attendances if att.hours and att.hours > 0])
+            # Рассчитываем статистику - правильно подсчитываем время за каждый день
+            total_hours = 0
+            working_shifts = 0
+            
+            # Группируем записи по дням
+            daily_attendance = {}
+            for att in attendances:
+                work_date = att.work_date
+                if work_date not in daily_attendance:
+                    daily_attendance[work_date] = []
+                daily_attendance[work_date].append(att)
+            
+            # Подсчитываем время для каждого дня
+            for work_date, day_attendances in daily_attendance.items():
+                # Сортируем записи по времени начала
+                day_attendances.sort(key=lambda x: x.started_at)
+                
+                # Подсчитываем общее время за день
+                day_total_seconds = 0
+                day_has_work = False
+                
+                for att in day_attendances:
+                    if att.ended_at is not None:
+                        # Завершенная сессия - добавляем её время
+                        started_at = att.started_at
+                        ended_at = att.ended_at
+                        
+                        # Handle timezone-aware and naive datetimes
+                        if started_at.tzinfo is None:
+                            utc_tz = timezone.utc
+                            started_at = started_at.replace(tzinfo=utc_tz)
+                        if ended_at.tzinfo is None:
+                            utc_tz = timezone.utc
+                            ended_at = ended_at.replace(tzinfo=utc_tz)
+                            
+                        session_seconds = (ended_at - started_at).total_seconds()
+                        day_total_seconds += session_seconds
+                        day_has_work = True
+                
+                if day_has_work:
+                    day_hours = day_total_seconds / 3600.0
+                    total_hours += day_hours
+                    working_shifts += 1
 
             days_off = len([s for s in schedules if s.shift_type == 'off'])
             vacations = len([s for s in schedules if s.shift_type == 'vacation'])
@@ -987,6 +1069,31 @@ def admin_attendance(
         attendance_record = None
         recent_attendances = []
 
+    # Convert attendance times to Moscow timezone for display
+    moscow_attendance_record = None
+    if attendance_record:
+        moscow_attendance_record = type('AttendanceDisplay', (), {
+            'id': attendance_record.id,
+            'user_id': attendance_record.user_id,
+            'work_date': attendance_record.work_date,
+            'started_at': _to_moscow_time(attendance_record.started_at) if attendance_record.started_at else None,
+            'ended_at': _to_moscow_time(attendance_record.ended_at) if attendance_record.ended_at else None,
+            'hours': attendance_record.hours
+        })()
+    
+    moscow_recent_attendances = []
+    for attendance in recent_attendances:
+        moscow_att = type('AttendanceDisplay', (), {
+            'id': attendance.id,
+            'user_id': attendance.user_id,
+            'work_date': attendance.work_date,
+            'started_at': _to_moscow_time(attendance.started_at) if attendance.started_at else None,
+            'ended_at': _to_moscow_time(attendance.ended_at) if attendance.ended_at else None,
+            'hours': attendance.hours,
+            'user': attendance.user
+        })()
+        moscow_recent_attendances.append(moscow_att)
+
     return templates.TemplateResponse(
         "admin.html",
         {
@@ -994,10 +1101,10 @@ def admin_attendance(
             "title": "Админ — Редактирование присутствия",
             "active_tab": "attendance",
             "employees": employees,
-            "attendance_record": attendance_record,
+            "attendance_record": moscow_attendance_record,
             "selected_employee_id": employee_id,
             "selected_date": selected_date,
-            "recent_attendances": recent_attendances,
+            "recent_attendances": moscow_recent_attendances,
             "message": "Редактирование записей о приходе и уходе сотрудников",
         },
     )

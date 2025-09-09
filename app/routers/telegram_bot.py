@@ -51,17 +51,17 @@ class TelegramBot:
             return True, "IP проверка отключена (нет разрешенных IP)"
 
         # Для Telegram пользователей мы не можем получить реальный IP адрес,
-        # поэтому проверяем альтернативные критерии:
+        # поэтому применяем строгие критерии проверки:
 
         # 1. Проверяем, есть ли у пользователя недавняя активность через веб-интерфейс
         # (это косвенно указывает на то, что пользователь имеет доступ к разрешенной сети)
         recent_attendance = db.query(Attendance).filter(
             Attendance.user_id == user_id,
-            Attendance.started_at >= datetime.now() - timedelta(days=7)  # Последние 7 дней
+            Attendance.started_at >= datetime.now() - timedelta(days=3)  # Уменьшили до 3 дней
         ).first()
 
         if recent_attendance:
-            return True, "Разрешено на основе недавней активности"
+            return True, "✅ Разрешено на основе недавней активности через веб-интерфейс"
 
         # 2. Проверяем, есть ли у пользователя опубликованный график на текущий месяц
         # (это указывает на то, что пользователь является активным сотрудником)
@@ -77,11 +77,16 @@ class TelegramBot:
         ).first()
 
         if active_schedule:
-            return True, "Разрешено для активного сотрудника с графиком"
+            return True, "✅ Разрешено для активного сотрудника с опубликованным графиком"
+
+        # 3. Проверяем, есть ли у пользователя веб-учетные данные
+        # (это указывает на то, что пользователь должен использовать веб-интерфейс)
+        if user.web_username and user.web_password_plain:
+            return False, "❌ Доступ запрещен! У вас есть веб-учетные данные. Используйте веб-интерфейс с разрешенного IP адреса для отметки прихода/ухода."
 
         # Если ни одного критерия не выполнено, но есть разрешенные IP,
-        # показываем предупреждение, но разрешаем действие с уведомлением
-        return True, "⚠️ Внимание: IP проверка активна, но для Telegram пользователей проверка ограничена. Рекомендуется использовать веб-интерфейс с разрешенного IP."
+        # блокируем доступ и рекомендуем использовать веб-интерфейс
+        return False, "❌ Доступ запрещен! IP проверка активна. Для отметки прихода/ухода используйте веб-интерфейс с разрешенного IP адреса или обратитесь к администратору."
 
     def _generate_web_credentials(self, name: str) -> tuple[str, str]:
         """Генерирует логин и пароль для веб-доступа"""
@@ -429,21 +434,44 @@ class TelegramBot:
         # Завершаем смену
         active.ended_at = now
 
-        # Рассчитываем время работы для этой смены
-        started_at = active.started_at
-        if started_at.tzinfo is None:
-            # Если время naive, предполагаем что оно в московском времени
-            moscow_tz = timezone(timedelta(hours=3))
-            started_at = started_at.replace(tzinfo=moscow_tz)
-
-        elapsed_seconds = (now - started_at).total_seconds()
-        current_hours = round(elapsed_seconds / 3600.0, 2)
-
-        # Суммируем с предыдущим временем
-        if active.hours:
-            active.hours += current_hours
-        else:
-            active.hours = current_hours
+        # Calculate total work time for today including all previous sessions
+        total_work_seconds = 0
+        
+        # Get all attendance records for today
+        today_records = db.query(Attendance).filter(
+            Attendance.user_id == user_id,
+            Attendance.work_date == today
+        ).order_by(Attendance.started_at).all()
+        
+        # Calculate total time from all completed sessions
+        for record in today_records:
+            if record.ended_at is not None:
+                # This session is completed, add its duration
+                started_at = record.started_at
+                ended_at = record.ended_at
+                
+                # Handle timezone-aware and naive datetimes
+                if started_at.tzinfo is None:
+                    utc_tz = timezone.utc
+                    started_at = started_at.replace(tzinfo=utc_tz)
+                if ended_at.tzinfo is None:
+                    utc_tz = timezone.utc
+                    ended_at = ended_at.replace(tzinfo=utc_tz)
+                    
+                session_seconds = (ended_at - started_at).total_seconds()
+                total_work_seconds += session_seconds
+        
+        # Add current session time
+        current_started_at = active.started_at
+        if current_started_at.tzinfo is None:
+            utc_tz = timezone.utc
+            current_started_at = current_started_at.replace(tzinfo=utc_tz)
+        
+        current_session_seconds = (now - current_started_at).total_seconds()
+        total_work_seconds += current_session_seconds
+        
+        # Update the current record
+        active.hours = round(total_work_seconds / 3600.0, 4)
 
         try:
             db.add(active)
@@ -731,21 +759,44 @@ class TelegramBot:
         # Завершаем смену
         active.ended_at = now
 
-        # Рассчитываем время работы для этой смены
-        started_at = active.started_at
-        if started_at.tzinfo is None:
-            # Если время naive, предполагаем что оно в московском времени
-            moscow_tz = timezone(timedelta(hours=3))
-            started_at = started_at.replace(tzinfo=moscow_tz)
-
-        elapsed_seconds = (now - started_at).total_seconds()
-        current_hours = round(elapsed_seconds / 3600.0, 2)
-
-        # Суммируем с предыдущим временем
-        if active.hours:
-            active.hours += current_hours
-        else:
-            active.hours = current_hours
+        # Calculate total work time for today including all previous sessions
+        total_work_seconds = 0
+        
+        # Get all attendance records for today
+        today_records = db.query(Attendance).filter(
+            Attendance.user_id == user_id,
+            Attendance.work_date == today
+        ).order_by(Attendance.started_at).all()
+        
+        # Calculate total time from all completed sessions
+        for record in today_records:
+            if record.ended_at is not None:
+                # This session is completed, add its duration
+                started_at = record.started_at
+                ended_at = record.ended_at
+                
+                # Handle timezone-aware and naive datetimes
+                if started_at.tzinfo is None:
+                    utc_tz = timezone.utc
+                    started_at = started_at.replace(tzinfo=utc_tz)
+                if ended_at.tzinfo is None:
+                    utc_tz = timezone.utc
+                    ended_at = ended_at.replace(tzinfo=utc_tz)
+                    
+                session_seconds = (ended_at - started_at).total_seconds()
+                total_work_seconds += session_seconds
+        
+        # Add current session time
+        current_started_at = active.started_at
+        if current_started_at.tzinfo is None:
+            utc_tz = timezone.utc
+            current_started_at = current_started_at.replace(tzinfo=utc_tz)
+        
+        current_session_seconds = (now - current_started_at).total_seconds()
+        total_work_seconds += current_session_seconds
+        
+        # Update the current record
+        active.hours = round(total_work_seconds / 3600.0, 4)
 
         try:
             db.add(active)
