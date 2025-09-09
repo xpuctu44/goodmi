@@ -28,25 +28,9 @@ services:
     image: nginx:alpine
     ports:
       - "80:80"
-      - "443:443"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
-      - ./ssl:/etc/nginx/ssl
+      - ./nginx-http.conf:/etc/nginx/nginx.conf
       - ./app/static:/app/static:ro
     depends_on:
       - web
     restart: unless-stopped
-
-  # Опционально: PostgreSQL для продакшена
-  # postgres:
-  #   image: postgres:15-alpine
-  #   environment:
-  #     POSTGRES_DB: time_tracker
-  #     POSTGRES_USER: ${DB_USER:-timetracker}
-  #     POSTGRES_PASSWORD: ${DB_PASSWORD:-secure_password}
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #   restart: unless-stopped
-
-# volumes:
-#   postgres_data:
