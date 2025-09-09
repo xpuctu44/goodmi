@@ -4,8 +4,525 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{ title or "Регистрация в системе" }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}" />
     <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      .nav {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+      .nav a {
+        padding: 10px 15px;
+        background: #007bff;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+      }
+      .nav a:hover {
+        background: #0056b3;
+      }
+      .nav a.active {
+        background: #28a745;
+      }
+      .back-link {
+        display: inline-block;
+        margin-bottom: 20px;
+        color: #007bff;
+        text-decoration: none;
+      }
+      .back-link:hover {
+        text-decoration: underline;
+      }
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+      .stat-card {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+        border-left: 4px solid #007bff;
+      }
+      .stat-number {
+        font-size: 2em;
+        font-weight: bold;
+        color: #007bff;
+      }
+      .stat-label {
+        color: #666;
+        margin-top: 5px;
+      }
+      .form-section {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+      }
+      .form-group {
+        margin-bottom: 15px;
+      }
+      .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+        color: #333;
+      }
+      .form-group input, .form-group select, .form-group textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 1em;
+        box-sizing: border-box;
+      }
+      .form-group select {
+        background: white;
+        cursor: pointer;
+        appearance: auto;
+        -webkit-appearance: auto;
+        -moz-appearance: auto;
+      }
+      .form-group select:focus {
+        outline: none;
+        border-color: #007bff;
+        box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+      }
+
+      /* Month selector specific styles */
+      .month-selector select {
+        min-width: 120px;
+        margin: 0 5px;
+      }
+
+      .month-selector .btn {
+        margin-left: 10px;
+      }
+      .form-group textarea {
+        height: 80px;
+        resize: vertical;
+      }
+      .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        font-size: 1em;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+        margin-right: 10px;
+        margin-bottom: 10px;
+      }
+      .btn-primary {
+        background: #007bff;
+        color: white;
+      }
+      .btn-primary:hover {
+        background: #0056b3;
+      }
+      .btn-danger {
+        background: #dc3545;
+        color: white;
+      }
+      .btn-danger:hover {
+        background: #c82333;
+      }
+      .btn-success {
+        background: #28a745;
+        color: white;
+      }
+      .btn-success:hover {
+        background: #218838;
+      }
+      .btn-warning {
+        background: #ffc107;
+        color: #212529;
+      }
+      .btn-warning:hover {
+        background: #e0a800;
+      }
+      .table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+      }
+      .table th, .table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+      .table th {
+        background: #f8f9fa;
+        font-weight: bold;
+      }
+      .table tr:hover {
+        background: #f5f5f5;
+      }
+      .alert {
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+      }
+      .alert-success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+      .alert-danger {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+      .alert-info {
+        background: #d1ecf1;
+        color: #0c5460;
+        border: 1px solid #bee5eb;
+      }
+      .schedule-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+      }
+      .schedule-card {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 4px solid #28a745;
+      }
+      .schedule-date {
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 10px;
+      }
+      .schedule-item {
+        background: white;
+        padding: 10px;
+        margin-bottom: 10px;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+      }
+      .schedule-item:last-child {
+        margin-bottom: 0;
+      }
+      .employee-name {
+        font-weight: bold;
+        color: #007bff;
+      }
+      .time-range {
+        color: #666;
+        font-size: 0.9em;
+      }
+      .notes {
+        color: #666;
+        font-style: italic;
+        margin-top: 5px;
+      }
+      .scheduling-container {
+        overflow-x: auto;
+        margin-top: 15px;
+        max-width: 100%;
+      }
+      .scheduling-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.75em;
+        line-height: 1.2;
+      }
+      .scheduling-table th, .scheduling-table td {
+        border: 1px solid #ddd;
+        padding: 3px 4px;
+        text-align: center;
+        vertical-align: middle;
+      }
+      .scheduling-table th {
+        background: #f8f9fa;
+        font-weight: bold;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        font-size: 0.7em;
+        padding: 4px 2px;
+      }
+      .employee-column {
+        min-width: 120px;
+        max-width: 140px;
+        text-align: left;
+        position: sticky;
+        left: 0;
+        background: #f8f9fa;
+        z-index: 20;
+        font-size: 0.7em;
+        padding: 4px 6px;
+      }
+      .date-column {
+        min-width: 45px;
+        max-width: 50px;
+        font-size: 0.65em;
+        padding: 2px;
+      }
+      .shift-cell {
+        width: 35px;
+        height: 28px;
+        padding: 1px !important;
+        text-align: center;
+        border: 1px solid #ddd;
+        cursor: pointer;
+        position: relative;
+        user-select: none;
+        font-size: 0.65em;
+      }
+      .shift-cell:hover {
+        border-color: #007bff;
+      }
+      .shift-cell.selected {
+        background: #007bff !important;
+        color: white;
+        border-color: #0056b3;
+      }
+      .shift-cell.dragging {
+        border-color: #2196f3;
+      }
+      .shift-cell.painting {
+        box-shadow: 0 0 8px rgba(33, 150, 243, 0.6);
+        border-color: #2196f3;
+      }
+      .shift-cell.painted {
+        animation: paintFlash 0.3s ease-out;
+      }
+      @keyframes paintFlash {
+        0% { background-color: rgba(33, 150, 243, 0.3); }
+        100% { background-color: inherit; }
+      }
+
+      /* Color coding for different shift types */
+      .shift-cell[data-shift-type="work"] {
+        background: #d4edda;
+        border-color: #28a745;
+      }
+      .shift-cell[data-shift-type="work"]:hover {
+        background: #c3e6cb;
+        border-color: #1e7e34;
+      }
+
+      .shift-cell[data-shift-type="weekend"] {
+        background: #fff3cd;
+        border-color: #ffc107;
+      }
+      .shift-cell[data-shift-type="weekend"]:hover {
+        background: #ffeaa7;
+        border-color: #d39e00;
+      }
+
+      .shift-cell[data-shift-type="off"] {
+        background: #f8d7da;
+        border-color: #dc3545;
+      }
+      .shift-cell[data-shift-type="off"]:hover {
+        background: #f5c6cb;
+        border-color: #bd2130;
+      }
+
+      .shift-cell[data-shift-type="vacation"] {
+        background: #d1ecf1;
+        border-color: #17a2b8;
+      }
+      .shift-cell[data-shift-type="vacation"]:hover {
+        background: #bee5eb;
+        border-color: #117a8b;
+      }
+
+      .shift-cell[data-shift-type="sick"] {
+        background: #e2e3e5;
+        border-color: #6c757d;
+      }
+      .shift-cell[data-shift-type="sick"]:hover {
+        background: #d6d8db;
+        border-color: #545b62;
+      }
+
+      /* Draft/Published indicators */
+      .shift-cell.draft {
+        position: relative;
+      }
+      .shift-cell.published {
+        position: relative;
+      }
+      .shift-cell.published::after {
+        content: "✓";
+        position: absolute;
+        top: -2px;
+        right: -2px;
+        background: #28a745;
+        color: white;
+        border-radius: 50%;
+        width: 12px;
+        height: 12px;
+        font-size: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        border: 1px solid white;
+      }
+      .draft-indicator {
+        position: absolute;
+        top: -2px;
+        right: -2px;
+        font-size: 10px;
+        opacity: 0.8;
+      }
+      .shift-content {
+        position: relative;
+        z-index: 1;
+      }
+
+      /* Override selected state for colored cells */
+      .shift-cell.selected[data-shift-type] {
+        background: #007bff !important;
+        color: white;
+        border-color: #0056b3;
+      }
+      .shift-content {
+        font-size: 0.6em;
+        font-weight: bold;
+        line-height: 1.1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #333;
+        padding: 1px 0;
+      }
+      .shift-type {
+        display: block;
+        margin-bottom: 0px;
+      }
+      .shift-time {
+        display: block;
+        font-size: 0.5em;
+        opacity: 0.8;
+        line-height: 1;
+      }
+
+      /* Text colors for better contrast on colored backgrounds */
+      .shift-cell[data-shift-type="work"] .shift-content,
+      .shift-cell[data-shift-type="weekend"] .shift-content,
+      .shift-cell[data-shift-type="off"] .shift-content,
+      .shift-cell[data-shift-type="vacation"] .shift-content,
+      .shift-cell[data-shift-type="sick"] .shift-content {
+        color: #333;
+      }
+
+      /* Special text color for weekend (yellow background) */
+      .shift-cell[data-shift-type="weekend"] .shift-content {
+        color: #856404;
+      }
+      .shift-dropdown-container {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        z-index: 1000;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 3px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        min-width: 90px;
+        max-width: 120px;
+      }
+      .shift-cell:hover .shift-dropdown-container {
+        display: block;
+      }
+      .shift-dropdown {
+        width: 100%;
+        padding: 3px 5px;
+        border: none;
+        background: none;
+        cursor: pointer;
+        font-size: 0.65em;
+        text-align: left;
+        line-height: 1.2;
+      }
+      .shift-dropdown:hover {
+        background: #f8f9fa;
+      }
+      .shift-dropdown:focus {
+        outline: none;
+        background: #e3f2fd;
+      }
+      .shift-info {
+        display: none;
+      }
+      .selection-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        background: rgba(0, 123, 255, 0.1);
+        border: 2px solid #007bff;
+        pointer-events: none;
+        z-index: 999;
+      }
+
+      /* Legend styling */
+      .shift-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 15px;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        border: 1px solid #dee2e6;
+        font-size: 0.75em;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.8em;
+        font-weight: 500;
+      }
+      .legend-color {
+        width: 14px;
+        height: 14px;
+        border-radius: 2px;
+      }
+      .legend-item span {
+        color: #495057;
+      }
+
+      /* Custom date picker styles */
+      .custom-date-picker {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        border: 1px solid #dee2e6;
+      }
+      .custom-date-picker.hidden {
+        display: none;
+      }
+      .custom-date-picker.visible {
+        display: block;
+      }
+
+      /* Register page specific styles */
       .register-container {
         max-width: 500px;
         margin: 30px auto;
@@ -15,70 +532,19 @@
         text-align: center;
         font-size: 2em;
         margin-bottom: 30px;
-        color: var(--accent);
-      }
-      .back-link {
-        display: inline-block;
-        margin-bottom: 20px;
-        color: var(--accent);
-        text-decoration: none;
-        font-size: 0.9em;
-      }
-      .back-link:hover {
-        text-decoration: underline;
-      }
-      .form-group {
-        margin-bottom: 20px;
-      }
-      .form-group label {
-        display: block;
-        margin-bottom: 8px;
-        font-weight: 500;
-        color: var(--fg);
-      }
-      .form-group input,
-      .form-group select {
-        width: 100%;
-        padding: 12px;
-        border: 2px solid #22324a;
-        border-radius: 8px;
-        background: #0f1527;
-        color: var(--fg);
-        font-size: 1em;
-        transition: border-color 0.3s;
-        box-sizing: border-box;
-      }
-      .form-group input:focus,
-      .form-group select:focus {
-        outline: none;
-        border-color: var(--accent);
-      }
-      .submit-button {
-        width: 100%;
-        padding: 15px;
-        background: var(--accent);
-        color: #04142b;
-        border: none;
-        border-radius: 8px;
-        font-size: 1.1em;
-        font-weight: 600;
-        cursor: pointer;
-        transition: background 0.3s;
-        margin-top: 10px;
-      }
-      .submit-button:hover {
-        background: #5a9cfe;
+        color: #007bff;
+        font-weight: bold;
       }
       .login-link {
         text-align: center;
         margin-top: 30px;
         padding: 20px;
-        background: var(--panel);
+        background: #f8f9fa;
         border-radius: 8px;
-        border: 1px solid #22324a;
+        border: 1px solid #dee2e6;
       }
       .login-link a {
-        color: var(--accent);
+        color: #007bff;
         text-decoration: none;
         font-weight: 500;
       }
@@ -86,18 +552,18 @@
         text-decoration: underline;
       }
       .error-message {
-        background: rgba(220, 53, 69, 0.1);
-        border: 1px solid #dc3545;
-        color: #dc3545;
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
         padding: 15px;
         border-radius: 8px;
         margin-bottom: 20px;
         text-align: center;
       }
       .success-message {
-        background: rgba(40, 167, 69, 0.1);
-        border: 1px solid #28a745;
-        color: #28a745;
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
         padding: 15px;
         border-radius: 8px;
         margin-bottom: 20px;
@@ -105,27 +571,26 @@
       }
       .role-description {
         font-size: 0.85em;
-        color: var(--muted);
+        color: #666;
         margin-top: 5px;
       }
     </style>
   </head>
   <body>
-    <header>
+    <div class="container">
       <h1>👤 Регистрация в системе</h1>
-    </header>
-    <main>
+
       <div class="register-container">
         <a href="/" class="back-link">← Вернуться на главную</a>
-        
+
         <h2 class="register-title">Создать аккаунт</h2>
-        
+
         {% if error %}
         <div class="error-message">
           {{ error }}
         </div>
         {% endif %}
-        
+
         {% if success %}
         <div class="success-message">
           ✅ Регистрация прошла успешно! Теперь вы можете войти в систему.
@@ -137,22 +602,22 @@
             <label for="email">📧 Email адрес</label>
             <input type="email" id="email" name="email" placeholder="your@email.com" required />
           </div>
-          
+
           <div class="form-group">
             <label for="password">🔒 Пароль (минимум 6 символов)</label>
             <input type="password" id="password" name="password" minlength="6" required placeholder="Введите пароль" />
           </div>
-          
+
           <div class="form-group">
             <label for="full_name">👤 ФИО</label>
             <input type="text" id="full_name" name="full_name" placeholder="Иванов Иван Иванович" />
           </div>
-          
+
           <div class="form-group">
             <label for="date_of_birth">📅 Дата рождения</label>
             <input type="date" id="date_of_birth" name="date_of_birth" />
           </div>
-          
+
           <div class="form-group">
             <label for="roleSelect">🎭 Роль в системе</label>
             <select name="role" id="roleSelect" onchange="toggleAdminSecret()">
@@ -164,22 +629,22 @@
               <strong>Администратор:</strong> полный доступ к системе, управление сотрудниками и отчеты
             </div>
           </div>
-          
+
           <div class="form-group" id="adminSecretBlock" style="display:none">
             <label for="admin_secret">🔐 Секретный код администратора</label>
             <input type="password" id="admin_secret" name="admin_secret" placeholder="Введите секретный код" />
           </div>
-          
-          <button type="submit" class="submit-button">
+
+          <button type="submit" class="btn btn-primary" style="width: 100%; padding: 15px; font-size: 1.1em; font-weight: 600; margin-top: 10px;">
             Зарегистрироваться
           </button>
         </form>
-        
+
         <div class="login-link">
           <p>Уже есть аккаунт? <a href="/login">Войти в систему</a></p>
         </div>
       </div>
-    </main>
+    </div>
     
     <script>
       function toggleAdminSecret(){
