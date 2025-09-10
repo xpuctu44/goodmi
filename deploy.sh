@@ -100,24 +100,24 @@ fi
 
 # Останавливаем старые контейнеры
 log "Останавливаем старые контейнеры..."
-docker compose down || true
+sudo docker compose down || true
 
 # Собираем и запускаем новые контейнеры
 log "Собираем и запускаем контейнеры..."
-docker compose up -d --build
+sudo docker compose up -d --build
 
 # Ждем запуска
 log "Ждем запуска приложения..."
 sleep 10
 
 # Проверяем статус
-if docker compose ps | grep -q "Up"; then
+if sudo docker compose ps | grep -q "Up"; then
     log "✅ Приложение успешно запущено!"
     log "🌐 Сайт доступен по адресу: https://$DOMAIN"
     log "📊 Статус контейнеров:"
-    docker compose ps
+    sudo docker compose ps
 else
-    error "❌ Ошибка при запуске приложения. Проверьте логи: docker compose logs"
+    error "❌ Ошибка при запуске приложения. Проверьте логи: sudo docker compose logs"
 fi
 
 # Настраиваем автозапуск
@@ -139,7 +139,7 @@ log "   4. Проверьте работу сайта"
 
 echo ""
 log "🔧 Полезные команды:"
-log "   docker compose logs -f          # Просмотр логов"
-log "   docker compose restart          # Перезапуск"
-log "   docker compose down             # Остановка"
+log "   sudo docker compose logs -f          # Просмотр логов"
+log "   sudo docker compose restart          # Перезапуск"
+log "   sudo docker compose down             # Остановка"
 log "   sudo systemctl status $SERVICE_NAME  # Статус сервиса"
