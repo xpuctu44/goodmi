@@ -4,7 +4,7 @@ services:
   web:
     build: .
     ports:
-      - "8000:8000"
+      - "8001:8001"
     environment:
       - ENVIRONMENT=production
       - DEBUG=False
@@ -12,7 +12,7 @@ services:
       - ADMIN_SECRET=${ADMIN_SECRET:-20252025}
       - DATABASE_URL=sqlite:///./data/time_tracker.db
       - HOST=0.0.0.0
-      - PORT=8000
+      - PORT=8001
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
