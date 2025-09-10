@@ -64,10 +64,19 @@ if [ ! -f .env ]; then
 fi
 
 # Создаем SSL сертификаты (самоподписанные для тестирования)
-if [ ! -f ssl/cert.pem ]; then
+if [ ! -f ssl/cert.pem ] || [ ! -f ssl/key.pem ]; then
     log "Создаем самоподписанные SSL сертификаты..."
+    # Удаляем старые файлы если они существуют
+    rm -f ssl/cert.pem ssl/key.pem
+    # Создаем новые сертификаты
     openssl req -x509 -newkey rsa:4096 -keyout ssl/key.pem -out ssl/cert.pem -days 365 -nodes \
         -subj "/C=RU/ST=Moscow/L=Moscow/O=TimeTracker/CN=$DOMAIN"
+    # Устанавливаем правильные права
+    chmod 600 ssl/key.pem
+    chmod 644 ssl/cert.pem
+    log "SSL сертификаты созданы"
+else
+    log "SSL сертификаты уже существуют"
 fi
 
 # Останавливаем старые контейнеры
