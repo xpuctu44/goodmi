@@ -33,7 +33,7 @@ fi
 # Переменные
 APP_DIR="/opt/time-tracker"
 SERVICE_NAME="time-tracker"
-DOMAIN="yourdomain.com"
+DOMAIN="work.maxmobiles.ru"
 
 log "Проверяем зависимости..."
 
@@ -42,7 +42,7 @@ if ! command -v docker &> /dev/null; then
     error "Docker не установлен. Установите Docker и попробуйте снова."
 fi
 
-if ! command -v docker-compose &> /dev/null; then
+if ! docker compose version &> /dev/null; then
     error "Docker Compose не установлен. Установите Docker Compose и попробуйте снова."
 fi
 
@@ -72,24 +72,24 @@ fi
 
 # Останавливаем старые контейнеры
 log "Останавливаем старые контейнеры..."
-docker-compose down || true
+docker compose down || true
 
 # Собираем и запускаем новые контейнеры
 log "Собираем и запускаем контейнеры..."
-docker-compose up -d --build
+docker compose up -d --build
 
 # Ждем запуска
 log "Ждем запуска приложения..."
 sleep 10
 
 # Проверяем статус
-if docker-compose ps | grep -q "Up"; then
+if docker compose ps | grep -q "Up"; then
     log "✅ Приложение успешно запущено!"
     log "🌐 Сайт доступен по адресу: https://$DOMAIN"
     log "📊 Статус контейнеров:"
-    docker-compose ps
+    docker compose ps
 else
-    error "❌ Ошибка при запуске приложения. Проверьте логи: docker-compose logs"
+    error "❌ Ошибка при запуске приложения. Проверьте логи: docker compose logs"
 fi
 
 # Настраиваем автозапуск
@@ -111,7 +111,7 @@ log "   4. Проверьте работу сайта"
 
 echo ""
 log "🔧 Полезные команды:"
-log "   docker-compose logs -f          # Просмотр логов"
-log "   docker-compose restart          # Перезапуск"
-log "   docker-compose down             # Остановка"
+log "   docker compose logs -f          # Просмотр логов"
+log "   docker compose restart          # Перезапуск"
+log "   docker compose down             # Остановка"
 log "   sudo systemctl status $SERVICE_NAME  # Статус сервиса"
