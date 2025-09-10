@@ -25,7 +25,7 @@ RUN useradd --create-home --shell /bin/bash app && \
 USER app
 
 # Открываем порт
-EXPOSE 8000
+EXPOSE 8001
 
 # Команда запуска
-CMD ["gunicorn", "app.main:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]
+CMD ["gunicorn", "app.main:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8001"]
