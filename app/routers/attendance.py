@@ -40,33 +40,30 @@ def _get_client_ip(request: Request) -> str:
 def _get_moscow_time() -> datetime:
     """Получает текущее время в московском часовом поясе (UTC+3)"""
     moscow_tz = timezone(timedelta(hours=3))
-    moscow_time = datetime.now(moscow_tz)
-    # Convert to UTC for database storage
-    return moscow_time.astimezone(timezone.utc)
+    return datetime.now(moscow_tz)
 
 
-def _to_moscow_time(utc_time: datetime) -> datetime:
-    """Конвертирует UTC время в московское время для отображения"""
-    if utc_time is None:
+def _to_moscow_time(moscow_time: datetime) -> datetime:
+    """Обеспечивает, что время в московском часовом поясе для отображения"""
+    if moscow_time is None:
         return None
     moscow_tz = timezone(timedelta(hours=3))
-    if utc_time.tzinfo is None:
-        # Assume it's UTC if no timezone info
-        utc_time = utc_time.replace(tzinfo=timezone.utc)
-    return utc_time.astimezone(moscow_tz)
+    if moscow_time.tzinfo is None:
+        # Assume it's already Moscow time if no timezone info
+        return moscow_time.replace(tzinfo=moscow_tz)
+    return moscow_time.astimezone(moscow_tz)
 
 
 def _calculate_total_work_time_today(user_id: int, db: Session, current_time: datetime = None) -> float:
     """Подсчитывает общее время работы за сегодня, включая активную сессию"""
     if current_time is None:
         current_time = _get_moscow_time()
-    
-    # Convert current_time to Moscow timezone for date calculation
-    moscow_tz = timezone(timedelta(hours=3))
-    moscow_time = current_time.astimezone(moscow_tz)
-    today = moscow_time.date()
+
+    # Ensure current_time is in Moscow timezone
+    current_time = _to_moscow_time(current_time)
+    today = current_time.date()
     total_work_seconds = 0
-    
+
     # Get all attendance records for today
     today_records = (
         db.query(Attendance)
@@ -77,39 +74,23 @@ def _calculate_total_work_time_today(user_id: int, db: Session, current_time: da
         .order_by(Attendance.started_at)
         .all()
     )
-    
+
     # Calculate total time from all completed sessions
     for record in today_records:
         if record.ended_at is not None:
             # This session is completed, add its duration
-            started_at = record.started_at
-            ended_at = record.ended_at
-            
-            # Handle timezone-aware and naive datetimes
-            if started_at.tzinfo is None:
-                utc_tz = timezone.utc
-                started_at = started_at.replace(tzinfo=utc_tz)
-            if ended_at.tzinfo is None:
-                utc_tz = timezone.utc
-                ended_at = ended_at.replace(tzinfo=utc_tz)
-                
+            started_at = _to_moscow_time(record.started_at)
+            ended_at = _to_moscow_time(record.ended_at)
+
             session_seconds = (ended_at - started_at).total_seconds()
             total_work_seconds += session_seconds
         else:
             # This is the active session, add time from start to now
-            started_at = record.started_at
-            if started_at.tzinfo is None:
-                utc_tz = timezone.utc
-                started_at = started_at.replace(tzinfo=utc_tz)
-            
-            # Ensure current_time is timezone-aware
-            if current_time.tzinfo is None:
-                utc_tz = timezone.utc
-                current_time = current_time.replace(tzinfo=utc_tz)
-            
+            started_at = _to_moscow_time(record.started_at)
+
             current_session_seconds = (current_time - started_at).total_seconds()
             total_work_seconds += current_session_seconds
-    
+
     return total_work_seconds / 3600.0  # Convert to hours
 
 
@@ -260,7 +241,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "user": user,
             "is_active": bool(active),
             "start_time": _to_moscow_time(active.started_at) if active else None,  # Moscow time for display
-            "start_time_utc": active.started_at if active else None,  # UTC time for JavaScript
+            "start_time_moscow": active.started_at if active else None,  # Moscow time for JavaScript
             "total_work_hours_today": total_work_hours_today,
             "employee_schedule": employee_schedule,
             "calendar_data": calendar_data,
@@ -280,10 +261,7 @@ def start_attendance(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(url="/dashboard?error=ip_not_allowed", status_code=status.HTTP_303_SEE_OTHER)
 
     now = _get_moscow_time()
-    # Convert to Moscow timezone for date calculation
-    moscow_tz = timezone(timedelta(hours=3))
-    moscow_time = now.astimezone(moscow_tz)
-    today = moscow_time.date()
+    today = now.date()
 
     # If already started today, just redirect
     existing_active = (
@@ -418,10 +396,7 @@ def stop_attendance(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(url="/dashboard", status_code=status.HTTP_303_SEE_OTHER)
 
     now = _get_moscow_time()
-    # Convert to Moscow timezone for date calculation
-    moscow_tz = timezone(timedelta(hours=3))
-    moscow_time = now.astimezone(moscow_tz)
-    today = moscow_time.date()
+    today = now.date()
     
     # Calculate total work time for today including all previous sessions
     total_work_seconds = 0

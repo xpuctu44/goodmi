@@ -13,7 +13,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 from app.database import get_db
 from app.models import User, ScheduleEntry, Store, Attendance, AllowedIP
-from app.routers.attendance import _get_current_user, _check_ip_allowed, _to_moscow_time
+from app.routers.attendance import _get_current_user, _check_ip_allowed, _to_moscow_time, _get_moscow_time
 
 
 router = APIRouter()
@@ -195,7 +195,6 @@ def admin_scheduling_table(
     request: Request,
     month: int = None,
     year: int = None,
-    store_id: int = None,
     db: Session = Depends(get_db)
 ):
     result = _ensure_admin(request, db)
@@ -234,20 +233,14 @@ def admin_scheduling_table(
         # Получаем все магазины
         stores = db.query(Store).all()
 
-        # Получаем всех активных сотрудников (с фильтром по магазину, если указан)
-        employees_query = db.query(User).filter(User.is_active == True)
-        if store_id:
-            employees_query = employees_query.filter(User.store_id == store_id)
-        employees = employees_query.order_by(User.full_name).all()
+        # Получаем всех активных сотрудников
+        employees = db.query(User).filter(User.is_active == True).order_by(User.full_name).all()
 
         # Получаем существующие смены на этот месяц
-        schedules_query = db.query(ScheduleEntry).filter(
+        month_schedules = db.query(ScheduleEntry).filter(
             ScheduleEntry.work_date >= first_day,
             ScheduleEntry.work_date <= last_day
-        )
-        if store_id:
-            schedules_query = schedules_query.filter(ScheduleEntry.store_id == store_id)
-        month_schedules = schedules_query.all()
+        ).all()
 
         # Группируем смены по сотруднику и дате
         schedule_dict = {}
@@ -255,8 +248,8 @@ def admin_scheduling_table(
             key = f"{schedule.user_id}_{schedule.work_date}"
             schedule_dict[key] = schedule
 
-        # Создаем записи по умолчанию (рабочие дни) для всех комбинаций сотрудник-дата
-        # которые еще не имеют записей
+        # Создаем записи по умолчанию только для дат, где их еще нет
+        # Это позволит гибко работать с частично заполненными месяцами
         default_schedules_to_create = []
         for employee in employees:
             for work_date in month_dates:
@@ -332,7 +325,6 @@ def admin_scheduling_table(
             "years": years,
             "selected_month": month,
             "selected_year": year,
-            "selected_store_id": store_id,
             "message": "Интерактивная таблица планирования смен",
         },
     )
@@ -460,7 +452,6 @@ def admin_schedule(
     request: Request,
     month: int = None,
     year: int = None,
-    store_id: int = None,
     db: Session = Depends(get_db)
 ):
     result = _ensure_admin(request, db)
@@ -499,21 +490,15 @@ def admin_schedule(
         # Получаем все магазины
         stores = db.query(Store).all()
 
-        # Получаем всех активных сотрудников (с фильтром по магазину, если указан)
-        employees_query = db.query(User).filter(User.is_active == True)
-        if store_id:
-            employees_query = employees_query.filter(User.store_id == store_id)
-        employees = employees_query.order_by(User.full_name).all()
+        # Получаем всех активных сотрудников
+        employees = db.query(User).filter(User.is_active == True).order_by(User.full_name).all()
 
         # Получаем только опубликованные смены на этот месяц
-        schedules_query = db.query(ScheduleEntry).filter(
+        month_schedules = db.query(ScheduleEntry).filter(
             ScheduleEntry.work_date >= first_day,
             ScheduleEntry.work_date <= last_day,
             ScheduleEntry.published == True
-        )
-        if store_id:
-            schedules_query = schedules_query.filter(ScheduleEntry.store_id == store_id)
-        month_schedules = schedules_query.all()
+        ).all()
 
         # Группируем смены по сотруднику и дате
         schedule_dict = {}
@@ -573,7 +558,6 @@ def admin_schedule(
             "years": years,
             "selected_month": month,
             "selected_year": year,
-            "selected_store_id": store_id,
             "message": "Просмотр текущих графиков и расписаний",
         },
     )
@@ -685,14 +669,10 @@ def admin_reports(
                         started_at = att.started_at
                         ended_at = att.ended_at
                         
-                        # Handle timezone-aware and naive datetimes
-                        if started_at.tzinfo is None:
-                            utc_tz = timezone.utc
-                            started_at = started_at.replace(tzinfo=utc_tz)
-                        if ended_at.tzinfo is None:
-                            utc_tz = timezone.utc
-                            ended_at = ended_at.replace(tzinfo=utc_tz)
-                            
+                        # Convert to Moscow timezone for consistent calculations
+                        started_at = _to_moscow_time(started_at)
+                        ended_at = _to_moscow_time(ended_at)
+
                         session_seconds = (ended_at - started_at).total_seconds()
                         day_total_seconds += session_seconds
                         day_has_work = True
@@ -833,8 +813,11 @@ def export_reports(
             else:
                 end_date_obj = date(today.year, today.month + 1, 1) - timedelta(days=1)
 
-        # Получаем всех активных сотрудников
-        employees = db.query(User).filter(User.is_active == True).order_by(User.full_name).all()
+        # Получаем всех активных сотрудников (с фильтром по магазину, если указан)
+        employees_query = db.query(User).filter(User.is_active == True)
+        if store_id:
+            employees_query = employees_query.filter(User.store_id == store_id)
+        employees = employees_query.order_by(User.full_name).all()
 
         # Собираем данные для каждого сотрудника
         report_data = []
@@ -879,14 +862,10 @@ def export_reports(
                         started_at = att.started_at
                         ended_at = att.ended_at
                         
-                        # Handle timezone-aware and naive datetimes
-                        if started_at.tzinfo is None:
-                            utc_tz = timezone.utc
-                            started_at = started_at.replace(tzinfo=utc_tz)
-                        if ended_at.tzinfo is None:
-                            utc_tz = timezone.utc
-                            ended_at = ended_at.replace(tzinfo=utc_tz)
-                            
+                        # Convert to Moscow timezone for consistent calculations
+                        started_at = _to_moscow_time(started_at)
+                        ended_at = _to_moscow_time(ended_at)
+
                         session_seconds = (ended_at - started_at).total_seconds()
                         day_total_seconds += session_seconds
                         day_has_work = True
@@ -1149,9 +1128,9 @@ def save_attendance(
         if existing:
             # Обновляем существующую запись
             if start_time_obj:
-                existing.started_at = datetime.combine(work_date, start_time_obj)
+                existing.started_at = _get_moscow_time().replace(hour=start_time_obj.hour, minute=start_time_obj.minute, second=0, microsecond=0)
             if end_time_obj:
-                existing.ended_at = datetime.combine(work_date, end_time_obj)
+                existing.ended_at = _get_moscow_time().replace(hour=end_time_obj.hour, minute=end_time_obj.minute, second=0, microsecond=0)
 
                 # Пересчитываем часы
                 if existing.started_at and existing.ended_at:
@@ -1168,7 +1147,7 @@ def save_attendance(
         else:
             # Создаем новую запись
             if start_time_obj:
-                started_at = datetime.combine(work_date, start_time_obj)
+                started_at = _get_moscow_time().replace(hour=start_time_obj.hour, minute=start_time_obj.minute, second=0, microsecond=0)
                 attendance = Attendance(
                     user_id=employee_id,
                     started_at=started_at,
@@ -1176,7 +1155,7 @@ def save_attendance(
                 )
 
                 if end_time_obj:
-                    attendance.ended_at = datetime.combine(work_date, end_time_obj)
+                    attendance.ended_at = _get_moscow_time().replace(hour=end_time_obj.hour, minute=end_time_obj.minute, second=0, microsecond=0)
                     elapsed_seconds = (attendance.ended_at - attendance.started_at).total_seconds()
                     attendance.hours = round(elapsed_seconds / 3600.0, 4)
 

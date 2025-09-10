@@ -790,7 +790,16 @@
                   </tr>
                 </thead>
                 <tbody>
+                  {% set current_store = none %}
                   {% for employee in employees %}
+                  {% if current_store != (employee.store.name if employee.store else 'Без магазина') %}
+                  {% set current_store = employee.store.name if employee.store else 'Без магазина' %}
+                  <tr class="store-group-header">
+                    <td colspan="{{ month_dates|length + 1 }}" style="background: #f8f9fa; font-weight: bold; padding: 10px; border-top: 2px solid #dee2e6; border-bottom: 1px solid #dee2e6;">
+                      🏪 {{ current_store }}
+                    </td>
+                  </tr>
+                  {% endif %}
                   <tr>
                     <td class="employee-name">
                       {{ employee.full_name or employee.email }}
@@ -843,15 +852,6 @@
               </table>
             </div>
 
-            <div class="form-group" style="margin-top: 20px;">
-              <label for="default_store">Магазин по умолчанию:</label>
-              <select id="default_store">
-                <option value="">Без привязки к магазину</option>
-                {% for store in stores %}
-                <option value="{{ store.id }}">{{ store.name }}</option>
-                {% endfor %}
-              </select>
-            </div>
 
             <!-- Publish Button -->
             <div class="form-group" style="margin-top: 20px; padding: 15px; background: #e8f5e8; border: 1px solid #28a745; border-radius: 8px;">
@@ -891,19 +891,10 @@
                 </option>
                 {% endfor %}
               </select>
-              <label style="font-weight: bold; color: #333;">Магазин:</label>
-              <select name="store_id" style="padding: 5px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9em; min-width: 160px;">
-                <option value="">Все магазины</option>
-                {% for s in stores %}
-                <option value="{{ s.id }}" {{ 'selected' if selected_store_id and s.id == selected_store_id else '' }}>
-                  {{ s.name }}
-                </option>
-                {% endfor %}
-              </select>
               <button type="submit" class="btn btn-primary" style="padding: 5px 15px; font-size: 0.9em;">Показать</button>
             </form>
             <div style="margin-top: 8px; font-size: 0.85em; color: #666;">
-              📅 <strong>Текущий выбор:</strong> {{ months[selected_month-1].name if selected_month else 'Текущий месяц' }} {{ selected_year if selected_year else 'текущий год' }} · 🏪 {{ (stores | selectattr('id','equalto', selected_store_id) | list)[0].name if selected_store_id else 'Все магазины' }}
+              📅 <strong>Текущий выбор:</strong> {{ months[selected_month-1].name if selected_month else 'Текущий месяц' }} {{ selected_year if selected_year else 'текущий год' }}
             </div>
           </div>
 
@@ -936,7 +927,16 @@
                 </tr>
               </thead>
               <tbody>
+                {% set current_store = none %}
                 {% for employee in employees %}
+                {% if current_store != (employee.store.name if employee.store else 'Без магазина') %}
+                {% set current_store = employee.store.name if employee.store else 'Без магазина' %}
+                <tr class="store-group-header">
+                  <td colspan="{{ month_dates|length + 1 }}" style="background: #f8f9fa; font-weight: bold; padding: 10px; border-top: 2px solid #dee2e6; border-bottom: 1px solid #dee2e6;">
+                    🏪 {{ current_store }}
+                  </td>
+                </tr>
+                {% endif %}
                 <tr>
                   <td class="employee-name">
                     {{ employee.full_name or employee.email }}
@@ -1589,7 +1589,6 @@
       async function quickSetWeekend(cell) {
         const employeeId = cell.dataset.employeeId;
         const workDate = cell.dataset.date;
-        const defaultStore = document.getElementById('default_store')?.value || '';
 
         // Visual feedback
         cell.style.opacity = '0.6';
@@ -1599,9 +1598,6 @@
           formData.append('employee_id', employeeId);
           formData.append('work_date', workDate);
           formData.append('shift_type', 'weekend');
-          if (defaultStore) {
-            formData.append('store_id', defaultStore);
-          }
 
           const response = await fetch('/admin/scheduling-table/toggle', {
             method: 'POST',
@@ -1663,7 +1659,7 @@
         } else {
           // Начинаем рисование (копирование типа смены)
           isPainting = true;
-          paintShiftType = cell.dataset.shiftType || 'work';
+          paintShiftType = cell.dataset.shiftType || '';
 
           // Визуальная обратная связь
           cell.classList.add('painting');
@@ -1716,16 +1712,12 @@
 
         const employeeId = cell.dataset.employeeId;
         const workDate = cell.dataset.date;
-        const defaultStore = document.getElementById('default_store')?.value || '';
 
         try {
           const formData = new FormData();
           formData.append('employee_id', employeeId);
           formData.append('work_date', workDate);
           formData.append('shift_type', paintShiftType);
-          if (defaultStore) {
-            formData.append('store_id', defaultStore);
-          }
 
           // Определяем время в зависимости от типа смены
           if (paintShiftType === 'work') {
@@ -1771,29 +1763,25 @@
       function selectShiftType(event, button, employeeId, workDate) {
         event.stopPropagation();
         const shiftType = button.dataset.value;
-        const defaultStore = document.getElementById('default_store')?.value || '';
 
         // Если есть выбранные ячейки (множественный выбор), применяем ко всем
         if (selectedCells.length > 1) {
-          applyShiftToMultipleCells(shiftType, defaultStore);
+          applyShiftToMultipleCells(shiftType);
         } else {
           // Одиночный выбор
-          applyShiftToCell(employeeId, workDate, shiftType, defaultStore);
+          applyShiftToCell(employeeId, workDate, shiftType);
         }
 
         // Очищаем выбор
         clearSelection();
       }
 
-      async function applyShiftToCell(employeeId, workDate, shiftType, storeId) {
+      async function applyShiftToCell(employeeId, workDate, shiftType) {
         try {
           const formData = new FormData();
           formData.append('employee_id', employeeId);
           formData.append('work_date', workDate);
           formData.append('shift_type', shiftType);
-          if (storeId) {
-            formData.append('store_id', storeId);
-          }
 
           // Определяем время в зависимости от типа смены
           if (shiftType === 'work') {
@@ -1822,11 +1810,11 @@
         }
       }
 
-      async function applyShiftToMultipleCells(shiftType, storeId) {
+      async function applyShiftToMultipleCells(shiftType) {
         const promises = selectedCells.map(cell => {
           const employeeId = cell.dataset.employeeId;
           const workDate = cell.dataset.date;
-          return applyShiftToCell(employeeId, workDate, shiftType, storeId);
+          return applyShiftToCell(employeeId, workDate, shiftType);
         });
 
         try {

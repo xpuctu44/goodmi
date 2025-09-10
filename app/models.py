@@ -63,6 +63,11 @@ class ScheduleEntry(Base):
     user = relationship("User")
     store = relationship("Store")
 
+    # Add unique constraint to prevent duplicates
+    __table_args__ = (
+        {'sqlite_autoincrement': True},
+    )
+
 
 class Store(Base):
     __tablename__ = "stores"

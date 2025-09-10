@@ -52,7 +52,7 @@ def setup_environment():
     # Устанавливаем переменные окружения для продакшена
     os.environ.setdefault("ENVIRONMENT", "production")
     os.environ.setdefault("HOST", "0.0.0.0")
-    os.environ.setdefault("PORT", "8001")
+    os.environ.setdefault("PORT", "8002")
     os.environ.setdefault("DOMAIN", "work.maxmobiles.ru")
     
     # Проверяем наличие .env файла
@@ -67,7 +67,7 @@ def create_env_file():
     env_content = """# Настройки для продакшена
 ENVIRONMENT=production
 HOST=0.0.0.0
-PORT=8001
+PORT=8002
 DOMAIN=work.maxmobiles.ru
 
 # База данных (настройте под вашу БД)
@@ -93,8 +93,8 @@ def start_server():
     print_colored("🚀 Запуск Time Tracker сервера...", Colors.GREEN)
     print_colored("=" * 60, Colors.BLUE)
     print_colored("🌐 Домен: work.maxmobiles.ru", Colors.PURPLE)
-    print_colored("🔗 Локальный доступ: http://localhost:8001", Colors.CYAN)
-    print_colored("📊 Админ панель: http://localhost:8001/admin", Colors.CYAN)
+    print_colored("🔗 Локальный доступ: http://localhost:8002", Colors.CYAN)
+    print_colored("📊 Админ панель: http://localhost:8002/admin", Colors.CYAN)
     print_colored("=" * 60, Colors.BLUE)
     
     # Параметры запуска для продакшена
@@ -102,7 +102,7 @@ def start_server():
         sys.executable, "-m", "uvicorn",
         "app.main:app",
         "--host", "0.0.0.0",
-        "--port", "8001",
+        "--port", "8002",
         "--workers", "4",  # Количество воркеров для продакшена
         "--access-log",
         "--log-level", "info",

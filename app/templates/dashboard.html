@@ -426,17 +426,18 @@
         const workTimer = document.getElementById('work-timer');
 
         if (timerDisplay && workTimer) {
-          // Get start time from server (UTC time for calculations)
-          const startTimeStr = '{{ start_time_utc.isoformat() if start_time_utc else "" }}';
+          // Get start time from server (Moscow time for calculations)
+          const startTimeStr = '{{ start_time_moscow.isoformat() if start_time_moscow else "" }}';
 
           if (startTimeStr) {
-            const startTime = new Date(startTimeStr); // UTC time for calculations
+            // Parse Moscow time directly (server sends Moscow time)
+            const startTime = new Date(startTimeStr);
             const now = new Date();
 
             // Calculate initial elapsed time
             let elapsedSeconds = Math.floor((now - startTime) / 1000);
-            
-            // Ensure elapsedSeconds is not negative
+
+            // Ensure elapsedSeconds is not negative (handle timezone issues)
             if (elapsedSeconds < 0) {
               elapsedSeconds = 0;
             }
@@ -468,25 +469,24 @@
 
         if (timerDisplayEmployee && workTimerEmployee) {
           // Get total work hours from server
-          const totalWorkHoursToday = {{ total_work_hours_today if total_work_hours_today else 0 }};
-          const startTimeStr = '{{ start_time_utc.isoformat() if start_time_utc else "" }}';
+          const totalWorkHoursToday = parseFloat('{{ total_work_hours_today|default(0) }}') || 0;
+          const startTimeStr = '{{ start_time_moscow.isoformat() if start_time_moscow else "" }}';
 
           if (startTimeStr) {
-            // Parse the start time correctly - it's in UTC from server
+            // Parse Moscow time directly (server sends Moscow time)
             const startTime = new Date(startTimeStr);
             const now = new Date();
 
             // Calculate initial elapsed time for current session
             let currentSessionSeconds = Math.floor((now - startTime) / 1000);
-            
-            // Ensure currentSessionSeconds is not negative
+
+            // Ensure currentSessionSeconds is not negative (handle timezone issues)
             if (currentSessionSeconds < 0) {
               currentSessionSeconds = 0;
             }
-            
+
             // Convert total work hours to seconds and add current session
-            // Ensure totalWorkHoursToday is a valid number
-            const totalWorkSecondsFromDB = Math.floor((totalWorkHoursToday || 0) * 3600);
+            const totalWorkSecondsFromDB = Math.floor(totalWorkHoursToday * 3600);
             let totalElapsedSeconds = totalWorkSecondsFromDB + currentSessionSeconds;
 
             // Update timer every second

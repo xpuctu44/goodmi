@@ -572,13 +572,15 @@ class TelegramBot:
                 keyboard = [
                     [InlineKeyboardButton("❌ Я ушел", callback_data="checkout")],
                     [InlineKeyboardButton("📊 Статус", callback_data="status")],
-                    [InlineKeyboardButton("🔑 Логин/Пароль", callback_data="show_credentials")]
+                    [InlineKeyboardButton("📅 Мой график", callback_data="my_schedule")],
+                    [InlineKeyboardButton(" Логин/Пароль", callback_data="show_credentials")]
                 ]
             else:
                 # Пользователь не на работе - показываем "я пришел" и "статус"
                 keyboard = [
                     [InlineKeyboardButton("✅ Я пришел", callback_data="checkin")],
                     [InlineKeyboardButton("📊 Статус", callback_data="status")],
+                    [InlineKeyboardButton("📅 Мой график", callback_data="my_schedule")],
                     [InlineKeyboardButton("🔑 Логин/Пароль", callback_data="show_credentials")]
                 ]
         else:
@@ -586,7 +588,8 @@ class TelegramBot:
             keyboard = [
                 [InlineKeyboardButton("✅ Я пришел", callback_data="checkin")],
                 [InlineKeyboardButton("📊 Статус", callback_data="status")],
-                [InlineKeyboardButton("🔑 Логин/Пароль", callback_data="show_credentials")]
+                [InlineKeyboardButton("📅 Мой график", callback_data="my_schedule")],
+                [InlineKeyboardButton(" Логин/Пароль", callback_data="show_credentials")]
             ]
 
         return InlineKeyboardMarkup(keyboard)
@@ -610,6 +613,8 @@ class TelegramBot:
             await self._handle_checkout_via_callback(query, user_id)
         elif action == "status":
             await self._handle_status_via_callback(query, user_id)
+        elif action == "my_schedule":
+            await self._handle_my_schedule_via_callback(query, user_id)
         elif action == "show_credentials":
             await self._handle_show_credentials_via_callback(query, user_id)
 
@@ -908,6 +913,105 @@ class TelegramBot:
                         await query.answer("Статус не изменился")
                     else:
                         await query.answer("Ошибка при обновлении статуса")
+
+    async def _handle_my_schedule_via_callback(self, query, user_id):
+        """Показать график сотрудника за текущий месяц через callback"""
+        db = self._get_db_session()
+        user = db.query(User).filter(User.id == user_id).first()
+
+        if not user:
+            await query.edit_message_text("Пользователь не найден")
+            return
+
+        # Получаем текущий месяц
+        now = self._get_moscow_time()
+        current_month = now.replace(day=1)
+        next_month = (current_month + timedelta(days=32)).replace(day=1)
+
+        # Получаем опубликованные смены за текущий месяц
+        from app.models import ScheduleEntry
+        schedules = db.query(ScheduleEntry).filter(
+            ScheduleEntry.user_id == user_id,
+            ScheduleEntry.work_date >= current_month,
+            ScheduleEntry.work_date < next_month,
+            ScheduleEntry.published == True
+        ).order_by(ScheduleEntry.work_date).all()
+
+        if not schedules:
+            await query.edit_message_text(
+                f"📅 Ваш график на {current_month.strftime('%B %Y')}\n\n"
+                "У вас нет опубликованных смен в этом месяце.\n\n"
+                "Выберите действие:",
+                reply_markup=self._get_main_menu_keyboard(user_id)
+            )
+            return
+
+        # Формируем сообщение с графиком
+        schedule_text = f"📅 Ваш график на {current_month.strftime('%B %Y')}\n\n"
+
+        # Группируем смены по неделям для лучшей читаемости
+        current_week = None
+        for schedule in schedules:
+            week_start = schedule.work_date - timedelta(days=schedule.work_date.weekday())
+            if current_week != week_start:
+                if current_week is not None:
+                    schedule_text += "\n"  # Добавляем пустую строку между неделями
+                current_week = week_start
+                week_end = week_start + timedelta(days=6)
+                schedule_text += f"📆 Неделя {week_start.strftime('%d.%m')} - {week_end.strftime('%d.%m')}:\n"
+
+            # Определяем тип смены
+            shift_type_text = ""
+            if schedule.shift_type == "work":
+                shift_type_text = "💼 Рабочий день"
+            elif schedule.shift_type == "off":
+                shift_type_text = "🏖️ Отгул"
+            elif schedule.shift_type == "vacation":
+                shift_type_text = "🏝️ Отпуск"
+            elif schedule.shift_type == "sick":
+                shift_type_text = "🤒 Больничный"
+            elif schedule.shift_type == "weekend":
+                shift_type_text = "🎉 Выходной"
+            else:
+                shift_type_text = "❓ Неизвестно"
+
+            # Добавляем время, если указано
+            time_info = ""
+            if schedule.start_time and schedule.end_time:
+                time_info = f" ({schedule.start_time.strftime('%H:%M')}-{schedule.end_time.strftime('%H:%M')})"
+
+            schedule_text += f"• {schedule.work_date.strftime('%d.%m (%a)')}: {shift_type_text}{time_info}\n"
+
+        # Добавляем итоговую статистику
+        work_days = len([s for s in schedules if s.shift_type == "work"])
+        off_days = len([s for s in schedules if s.shift_type == "off"])
+        vacation_days = len([s for s in schedules if s.shift_type == "vacation"])
+        sick_days = len([s for s in schedules if s.shift_type == "sick"])
+        weekend_days = len([s for s in schedules if s.shift_type == "weekend"])
+
+        schedule_text += f"\n📊 Итого за месяц:\n"
+        schedule_text += f"• Рабочих дней: {work_days}\n"
+        schedule_text += f"• Отгулов: {off_days}\n"
+        schedule_text += f"• Отпуск: {vacation_days}\n"
+        schedule_text += f"• Больничных: {sick_days}\n"
+        schedule_text += f"• Выходных: {weekend_days}\n\n"
+
+        # Ограничиваем длину сообщения (Telegram имеет лимит 4096 символов)
+        if len(schedule_text) > 4000:
+            schedule_text = schedule_text[:3950] + "\n\n... (сообщение сокращено)\n\n"
+
+        schedule_text += "Выберите действие:"
+
+        try:
+            await query.edit_message_text(
+                schedule_text,
+                reply_markup=self._get_main_menu_keyboard(user_id)
+            )
+        except Exception as e:
+            if "Message is not modified" in str(e):
+                await query.answer("График уже показан")
+            else:
+                await query.answer("Ошибка при показе графика")
 
     async def _handle_show_credentials_via_callback(self, query, user_id):
         """Показать логин и пароль для веб-версии через callback"""
