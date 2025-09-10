@@ -51,9 +51,18 @@ log "Создаем директории..."
 sudo mkdir -p $APP_DIR/{data,logs,backups,ssl}
 sudo chown -R $USER:$USER $APP_DIR
 
-# Копируем файлы
+# Копируем файлы (исключая .git)
 log "Копируем файлы приложения..."
-cp -r . $APP_DIR/
+if [ -d "$APP_DIR" ]; then
+    log "Директория $APP_DIR уже существует, очищаем..."
+    sudo rm -rf $APP_DIR/*
+fi
+# Копируем все файлы кроме .git
+for item in ./* ./.*; do
+    if [ "$item" != "./." ] && [ "$item" != "./.." ] && [ "$item" != "./.git" ]; then
+        cp -r "$item" $APP_DIR/ 2>/dev/null || true
+    fi
+done
 cd $APP_DIR
 
 # Создаем .env файл если его нет
@@ -67,16 +76,26 @@ fi
 if [ ! -f ssl/cert.pem ] || [ ! -f ssl/key.pem ]; then
     log "Создаем самоподписанные SSL сертификаты..."
     # Удаляем старые файлы если они существуют
-    rm -f ssl/cert.pem ssl/key.pem
+    sudo rm -f ssl/cert.pem ssl/key.pem
     # Создаем новые сертификаты
-    openssl req -x509 -newkey rsa:4096 -keyout ssl/key.pem -out ssl/cert.pem -days 365 -nodes \
+    sudo openssl req -x509 -newkey rsa:4096 -keyout ssl/key.pem -out ssl/cert.pem -days 365 -nodes \
         -subj "/C=RU/ST=Moscow/L=Moscow/O=TimeTracker/CN=$DOMAIN"
     # Устанавливаем правильные права
-    chmod 600 ssl/key.pem
-    chmod 644 ssl/cert.pem
+    sudo chmod 600 ssl/key.pem
+    sudo chmod 644 ssl/cert.pem
+    sudo chown $USER:$USER ssl/cert.pem ssl/key.pem
     log "SSL сертификаты созданы"
 else
     log "SSL сертификаты уже существуют"
+    # Проверяем и исправляем права если нужно
+    if [ -f ssl/key.pem ]; then
+        sudo chmod 600 ssl/key.pem
+        sudo chown $USER:$USER ssl/key.pem
+    fi
+    if [ -f ssl/cert.pem ]; then
+        sudo chmod 644 ssl/cert.pem
+        sudo chown $USER:$USER ssl/cert.pem
+    fi
 fi
 
 # Останавливаем старые контейнеры
