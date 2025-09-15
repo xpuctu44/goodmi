@@ -5,7 +5,8 @@ import secrets
 import qrcode
 
 from fastapi import APIRouter, Depends, Form, Request, status
-from fastapi.responses import RedirectResponse, JSONResponse, StreamingResponse
+from typing import Optional
+from fastapi.responses import RedirectResponse, JSONResponse, StreamingResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from openpyxl import Workbook
@@ -195,6 +196,7 @@ def admin_scheduling_table(
     request: Request,
     month: int = None,
     year: int = None,
+    store_id: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     result = _ensure_admin(request, db)
@@ -233,8 +235,16 @@ def admin_scheduling_table(
         # Получаем все магазины
         stores = db.query(Store).all()
 
-        # Получаем всех активных сотрудников
-        employees = db.query(User).filter(User.is_active == True).order_by(User.full_name).all()
+        # Получаем всех активных сотрудников и (опционально) фильтруем по магазину
+        employees_query = db.query(User).filter(User.is_active == True)
+        # Параметр может прийти как пустая строка — игнорируем в этом случае
+        if store_id and str(store_id).strip().isdigit():
+            employees_query = employees_query.filter(User.store_id == int(store_id))
+        employees = employees_query.all()
+        employees.sort(key=lambda u: (
+            (u.store.name if getattr(u, "store", None) and u.store and u.store.name else "Без магазина").lower(),
+            (u.full_name or u.email or "").lower()
+        ))
 
         # Получаем существующие смены на этот месяц
         month_schedules = db.query(ScheduleEntry).filter(
@@ -325,6 +335,7 @@ def admin_scheduling_table(
             "years": years,
             "selected_month": month,
             "selected_year": year,
+            "selected_store_id": (int(store_id) if store_id and str(store_id).strip().isdigit() else None),
             "message": "Интерактивная таблица планирования смен",
         },
     )
@@ -452,6 +463,7 @@ def admin_schedule(
     request: Request,
     month: int = None,
     year: int = None,
+    store_id: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     result = _ensure_admin(request, db)
@@ -490,8 +502,15 @@ def admin_schedule(
         # Получаем все магазины
         stores = db.query(Store).all()
 
-        # Получаем всех активных сотрудников
-        employees = db.query(User).filter(User.is_active == True).order_by(User.full_name).all()
+        # Получаем всех активных сотрудников (опционально фильтруем по магазину) и сортируем как в таблице планирования
+        employees_query = db.query(User).filter(User.is_active == True)
+        if store_id and str(store_id).strip().isdigit():
+            employees_query = employees_query.filter(User.store_id == int(store_id))
+        employees = employees_query.all()
+        employees.sort(key=lambda u: (
+            (u.store.name if getattr(u, "store", None) and u.store and u.store.name else "Без магазина").lower(),
+            (u.full_name or u.email or "").lower()
+        ))
 
         # Получаем только опубликованные смены на этот месяц
         month_schedules = db.query(ScheduleEntry).filter(
@@ -558,6 +577,7 @@ def admin_schedule(
             "years": years,
             "selected_month": month,
             "selected_year": year,
+            "selected_store_id": (int(store_id) if store_id and str(store_id).strip().isdigit() else None),
             "message": "Просмотр текущих графиков и расписаний",
         },
     )
@@ -571,6 +591,7 @@ def admin_reports(
     end_date: str = None,
     month: int = None,
     year: int = None,
+    store_id: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     result = _ensure_admin(request, db)
@@ -621,8 +642,15 @@ def admin_reports(
             else:
                 end_date_obj = date(today.year, today.month + 1, 1) - timedelta(days=1)
 
-        # Получаем всех активных сотрудников
-        employees = db.query(User).filter(User.is_active == True).order_by(User.full_name).all()
+        # Получаем всех активных сотрудников (опционально по магазину) и сортируем по магазину, затем по имени
+        employees_query = db.query(User).filter(User.is_active == True)
+        if store_id and str(store_id).strip().isdigit():
+            employees_query = employees_query.filter(User.store_id == int(store_id))
+        employees = employees_query.all()
+        employees.sort(key=lambda u: (
+            (u.store.name if getattr(u, "store", None) and u.store and u.store.name else "Без магазина").lower(),
+            (u.full_name or u.email or "").lower()
+        ))
 
         # Собираем данные для каждого сотрудника
         report_data = []
@@ -754,6 +782,8 @@ def admin_reports(
             "years": years,
             "selected_month": selected_month,
             "selected_year": selected_year,
+            "stores": db.query(Store).all(),
+            "selected_store_id": (int(store_id) if store_id and str(store_id).strip().isdigit() else None),
             "message": "Аналитика и отчеты по рабочему времени",
         },
     )
@@ -767,6 +797,7 @@ def export_reports(
     end_date: str = None,
     month: int = None,
     year: int = None,
+    store_id: int = None,
     db: Session = Depends(get_db)
 ):
     result = _ensure_admin(request, db)
@@ -921,11 +952,47 @@ def export_reports(
             cell.alignment = Alignment(horizontal="center")
             cell.border = border
 
-        # Данные сотрудников
-        for row_num, data in enumerate(report_data, 2):
-            employee = data['employee']
+        # Группировка по магазинам в Excel
+        # Подготовка стилей для заголовков групп (зелёные, как на сайте)
+        store_header_font = Font(bold=True, color="155724")
+        store_header_fill = PatternFill(start_color="EAF7EA", end_color="EAF7EA", fill_type="solid")
+        store_header_border = Border(
+            left=Side(style='thin'), right=Side(style='thin'), top=Side(style='medium'), bottom=Side(style='thin')
+        )
 
-            # Данные строки
+        # Сортируем данные как в HTML: по названию магазина (или "Без магазина"), затем по имени/почте
+        def _store_name(d):
+            emp = d['employee']
+            return (emp.store.name if getattr(emp, 'store', None) else 'Без магазина')
+
+        def _employee_key(d):
+            emp = d['employee']
+            return (emp.full_name or emp.email or '').lower()
+
+        report_data_sorted = sorted(report_data, key=lambda d: (_store_name(d) or '', _employee_key(d)))
+
+        current_row = 2
+        current_store = None
+        for data in report_data_sorted:
+            employee = data['employee']
+            emp_store_name = employee.store.name if getattr(employee, 'store', None) else 'Без магазина'
+
+            # При смене магазина — вставляем заголовок группы
+            if current_store != emp_store_name:
+                current_store = emp_store_name
+                # Заголовок на всю ширину таблицы
+                ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row, end_column=len(headers))
+                header_cell = ws.cell(row=current_row, column=1, value=f"🏪 {current_store}")
+                header_cell.font = store_header_font
+                header_cell.fill = store_header_fill
+                header_cell.alignment = Alignment(horizontal="left")
+                # Рамка по всей строке заголовка
+                for col_num in range(1, len(headers) + 1):
+                    c = ws.cell(row=current_row, column=col_num)
+                    c.border = store_header_border
+                current_row += 1
+
+            # Строка сотрудника
             row_data = [
                 employee.full_name or employee.email,
                 employee.email,
@@ -939,15 +1006,16 @@ def export_reports(
             ]
 
             for col_num, value in enumerate(row_data, 1):
-                cell = ws.cell(row=row_num, column=col_num, value=value)
+                cell = ws.cell(row=current_row, column=col_num, value=value)
                 cell.border = border
                 if col_num == 1:
                     cell.alignment = Alignment(horizontal="left")
                 else:
                     cell.alignment = Alignment(horizontal="center")
+            current_row += 1
 
         # Итоговая строка
-        total_row = len(report_data) + 2
+        total_row = current_row + 1
         total_hours_all = sum(data['total_hours'] for data in report_data)
         total_shifts_all = sum(data['working_shifts'] for data in report_data)
 
@@ -997,8 +1065,9 @@ def export_reports(
         # Используем ASCII название файла
         filename = f"work_time_report_{period_name}.xlsx"
 
-        return StreamingResponse(
-            buffer,
+        # Отдаем как обычный ответ с байтами файла — это надежнее для большинства браузеров
+        return Response(
+            content=buffer.getvalue(),
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             headers={"Content-Disposition": f"attachment; filename={filename}"}
         )
@@ -1033,7 +1102,7 @@ def admin_attendance(
                 attendance_record = db.query(Attendance).filter(
                     Attendance.user_id == employee_id,
                     Attendance.work_date == work_date
-                ).first()
+                ).order_by(Attendance.started_at.desc()).first()
             except:
                 pass
 
@@ -1188,28 +1257,49 @@ def delete_attendance(attendance_id: int, request: Request, db: Session = Depend
 
     try:
         attendance = db.query(Attendance).filter(Attendance.id == attendance_id).first()
-        if attendance:
-            employee_id = attendance.user_id
-            work_date = attendance.work_date
-            db.delete(attendance)
-            db.commit()
-
-            return RedirectResponse(
-                url=f"/admin/attendance?employee_id={employee_id}&selected_date={work_date}&success=deleted",
-                status_code=status.HTTP_303_SEE_OTHER
-            )
-        else:
+        if not attendance:
             return RedirectResponse(
                 url="/admin/attendance?error=not_found",
                 status_code=status.HTTP_303_SEE_OTHER
             )
 
+        employee_id = attendance.user_id
+        work_date = attendance.work_date
+
+        try:
+            # Удаляем все записи за этот день для пользователя, чтобы не оставались дубликаты
+            duplicates = db.query(Attendance).filter(
+                Attendance.user_id == employee_id,
+                Attendance.work_date == work_date
+            ).all()
+            for rec in duplicates:
+                db.delete(rec)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"Ошибка при удалении присутствия (id={attendance_id}): {e}")
+            return RedirectResponse(
+                url=f"/admin/attendance?employee_id={employee_id}&selected_date={work_date}&error=delete_error",
+                status_code=status.HTTP_303_SEE_OTHER
+            )
+
+        return RedirectResponse(
+            url=f"/admin/attendance?employee_id={employee_id}&selected_date={work_date}&success=deleted",
+            status_code=status.HTTP_303_SEE_OTHER
+        )
+
     except Exception as e:
-        print(f"Ошибка при удалении присутствия: {e}")
+        print(f"Ошибка при удалении присутствия (общая): {e}")
         return RedirectResponse(
             url="/admin/attendance?error=delete_error",
             status_code=status.HTTP_303_SEE_OTHER
         )
+
+
+@router.get("/admin/attendance/delete/{attendance_id}", include_in_schema=False)
+def delete_attendance_get(attendance_id: int, request: Request, db: Session = Depends(get_db)):
+    """Зеркальный GET-эндпоинт удаления на случай, если форма/ссылка вызывает GET."""
+    return delete_attendance(attendance_id, request, db)
 
 
 @router.get("/admin/stores", include_in_schema=False)

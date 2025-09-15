@@ -479,6 +479,15 @@
         z-index: 999;
       }
 
+      /* Store header rows for grouped sections */
+      .store-group-header td {
+        background: #eaf7ea; /* light green fill */
+        border-top: 2px solid #bfe6bf;
+        border-bottom: 1px solid #bfe6bf;
+        font-weight: 700;
+        color: #155724; /* dark green title color */
+      }
+
       /* Legend styling */
       .shift-legend {
         display: flex;
@@ -790,13 +799,13 @@
                   </tr>
                 </thead>
                 <tbody>
-                  {% set current_store = none %}
+                  {% set ns = namespace(current_store=None) %}
                   {% for employee in employees %}
-                  {% if current_store != (employee.store.name if employee.store else 'Без магазина') %}
-                  {% set current_store = employee.store.name if employee.store else 'Без магазина' %}
+                  {% if ns.current_store != (employee.store.name if employee.store else 'Без магазина') %}
+                  {% set ns.current_store = employee.store.name if employee.store else 'Без магазина' %}
                   <tr class="store-group-header">
-                    <td colspan="{{ month_dates|length + 1 }}" style="background: #f8f9fa; font-weight: bold; padding: 10px; border-top: 2px solid #dee2e6; border-bottom: 1px solid #dee2e6;">
-                      🏪 {{ current_store }}
+                    <td colspan="{{ month_dates|length + 1 }}" style="font-weight: bold; padding: 10px;">
+                      🏪 {{ ns.current_store }}
                     </td>
                   </tr>
                   {% endif %}
@@ -891,10 +900,19 @@
                 </option>
                 {% endfor %}
               </select>
+              <label style="font-weight: bold; color: #333;">Магазин:</label>
+              <select name="store_id" style="padding: 5px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9em; min-width: 160px;">
+                <option value="">Все магазины</option>
+                {% for s in stores %}
+                <option value="{{ s.id }}" {{ 'selected' if selected_store_id and s.id == selected_store_id else '' }}>
+                  {{ s.name }}
+                </option>
+                {% endfor %}
+              </select>
               <button type="submit" class="btn btn-primary" style="padding: 5px 15px; font-size: 0.9em;">Показать</button>
             </form>
             <div style="margin-top: 8px; font-size: 0.85em; color: #666;">
-              📅 <strong>Текущий выбор:</strong> {{ months[selected_month-1].name if selected_month else 'Текущий месяц' }} {{ selected_year if selected_year else 'текущий год' }}
+              📅 <strong>Текущий выбор:</strong> {{ months[selected_month-1].name if selected_month else 'Текущий месяц' }} {{ selected_year if selected_year else 'текущий год' }} · 🏪 {{ (stores | selectattr('id','equalto', selected_store_id) | list)[0].name if selected_store_id else 'Все магазины' }}
             </div>
           </div>
 
@@ -927,13 +945,13 @@
                 </tr>
               </thead>
               <tbody>
-                {% set current_store = none %}
+                {% set ns = namespace(current_store=None) %}
                 {% for employee in employees %}
-                {% if current_store != (employee.store.name if employee.store else 'Без магазина') %}
-                {% set current_store = employee.store.name if employee.store else 'Без магазина' %}
+                {% if ns.current_store != (employee.store.name if employee.store else 'Без магазина') %}
+                {% set ns.current_store = employee.store.name if employee.store else 'Без магазина' %}
                 <tr class="store-group-header">
-                  <td colspan="{{ month_dates|length + 1 }}" style="background: #f8f9fa; font-weight: bold; padding: 10px; border-top: 2px solid #dee2e6; border-bottom: 1px solid #dee2e6;">
-                    🏪 {{ current_store }}
+                  <td colspan="{{ month_dates|length + 1 }}" style="font-weight: bold; padding: 10px;">
+                    🏪 {{ ns.current_store }}
                   </td>
                 </tr>
                 {% endif %}
@@ -1051,6 +1069,17 @@
                      {% endfor %}
                    </select>
                  </div>
+                 <div>
+                   <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Магазин:</label>
+                   <select name="store_id" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9em; min-width: 160px;">
+                     <option value="">Все магазины</option>
+                     {% for s in stores %}
+                     <option value="{{ s.id }}" {{ 'selected' if selected_store_id and s.id == selected_store_id else '' }}>
+                       {{ s.name }}
+                     </option>
+                     {% endfor %}
+                   </select>
+                 </div>
                  <div style="align-self: flex-end;">
                    <button type="submit" class="btn btn-success" style="padding: 8px 20px; font-size: 0.9em;">
                      📊 Показать отчет
@@ -1058,7 +1087,7 @@
                  </div>
                </form>
                <div style="margin-top: 10px; font-size: 0.85em; color: #666;">
-                 📅 <strong>Текущий выбор:</strong> {{ months[selected_month-1].name if selected_month else 'Текущий месяц' }} {{ selected_year if selected_year else 'текущий год' }}
+                 📅 <strong>Текущий выбор:</strong> {{ months[selected_month-1].name if selected_month else 'Текущий месяц' }} {{ selected_year if selected_year else 'текущий год' }} · 🏪 {{ (stores | selectattr('id','equalto', selected_store_id) | list)[0].name if selected_store_id else 'Все магазины' }}
                </div>
              </div>
              {% endif %}
@@ -1075,6 +1104,17 @@
                  <div>
                    <label for="end_date" style="display: block; margin-bottom: 5px; font-weight: bold;">Дата окончания:</label>
                    <input type="date" id="end_date" name="end_date" value="{{ end_date }}" required class="form-group" style="width: auto;">
+                 </div>
+                 <div>
+                   <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Магазин:</label>
+                   <select name="store_id" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9em; min-width: 160px;">
+                     <option value="">Все магазины</option>
+                     {% for s in stores %}
+                     <option value="{{ s.id }}" {{ 'selected' if selected_store_id and s.id == selected_store_id else '' }}>
+                       {{ s.name }}
+                     </option>
+                     {% endfor %}
+                   </select>
                  </div>
                  <div style="align-self: flex-end;">
                    <button type="submit" class="btn btn-success">📊 Сформировать отчет</button>
@@ -1101,7 +1141,7 @@
            <div class="form-section">
              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                <h4 style="margin: 0;">Детальный отчет по сотрудникам</h4>
-               <a href="/admin/reports/export?report_type={{ report_type }}&start_date={{ start_date }}&end_date={{ end_date }}{% if report_type == 'month' %}&month={{ selected_month }}&year={{ selected_year }}{% endif %}" class="btn btn-success">
+               <a href="/admin/reports/export?report_type={{ report_type }}&start_date={{ start_date }}&end_date={{ end_date }}{% if report_type == 'month' %}&month={{ selected_month }}&year={{ selected_year }}{% endif %}{% if selected_store_id %}&store_id={{ selected_store_id }}{% endif %}" class="btn btn-success">
                  📥 Скачать Excel
                </a>
              </div>
@@ -1122,7 +1162,17 @@
                    </tr>
                  </thead>
                  <tbody>
+                   {% set ns = namespace(current_store=None) %}
                    {% for data in report_data %}
+                   {% set emp_store = data.employee.store.name if data.employee.store else 'Без магазина' %}
+                   {% if ns.current_store != emp_store %}
+                   {% set ns.current_store = emp_store %}
+                   <tr class="store-group-header">
+                     <td colspan="9" style="font-weight: bold; padding: 10px;">
+                       🏪 {{ ns.current_store }}
+                     </td>
+                   </tr>
+                   {% endif %}
                    <tr>
                      <td>
                        <strong>{{ data.employee.full_name or data.employee.email }}</strong>
@@ -1374,10 +1424,9 @@
                 </button>
 
                 {% if attendance_record %}
-                <a href="/admin/attendance/delete/{{ attendance_record.id }}" class="btn btn-danger"
-                   onclick="return confirm('Удалить запись о присутствии?')">
+                <button type="submit" class="btn btn-danger" formmethod="post" formaction="/admin/attendance/delete/{{ attendance_record.id }}" onclick="return confirm('Удалить запись о присутствии?')">
                   🗑️ Удалить запись
-                </a>
+                </button>
                 {% endif %}
 
                 <a href="/admin/attendance" class="btn btn-secondary">🔄 Сбросить</a>

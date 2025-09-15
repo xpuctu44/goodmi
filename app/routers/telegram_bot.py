@@ -161,6 +161,21 @@ class TelegramBot:
         session = self.user_sessions[telegram_id]
         step = session.get("step")
 
+        # Если пользователь был удален в вебе, сбрасываем сессию и предлагаем регистрацию
+        if step == "main_menu":
+            db = self._get_db_session()
+            user_id = session.get("user_id")
+            user_exists = db.query(User).filter(User.id == user_id, User.is_active == True).first() if user_id else None
+            if not user_exists:
+                # Сбрасываем сессию и переводим в режим регистрации
+                self.user_sessions[telegram_id] = {"step": "register_full_name", "registration_data": {}}
+                await update.message.reply_text(
+                    "Ваш аккаунт был удален или деактивирован администратором.\n\n"
+                    "Пройдите регистрацию заново.\n\n"
+                    "📝 Шаг 1 из 4: Введите ваше полное имя (Фамилия Имя Отчество):"
+                )
+                return
+
         if step.startswith("register_"):
             await self._handle_registration_step(update, text)
         elif step == "main_menu":
@@ -605,6 +620,18 @@ class TelegramBot:
             return
 
         user_id = self.user_sessions[telegram_id]["user_id"]
+
+        # Если пользователь был удален или деактивирован в вебе — очищаем сессию и просим зарегистрироваться заново
+        db = self._get_db_session()
+        user_exists = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+        if not user_exists:
+            self.user_sessions[telegram_id] = {"step": "register_full_name", "registration_data": {}}
+            await query.edit_message_text(
+                "Ваш аккаунт был удален или деактивирован администратором.\n\n"
+                "Пройдите регистрацию заново.\n\n"
+                "📝 Шаг 1 из 4: Введите ваше полное имя (Фамилия Имя Отчество):"
+            )
+            return
         action = query.data
 
         if action == "checkin":

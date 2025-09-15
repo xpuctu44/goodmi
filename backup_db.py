@@ -3,9 +3,53 @@ import shutil
 from datetime import datetime
 import sys
 
+try:
+    from dotenv import load_dotenv
+except Exception:
+    load_dotenv = None
+
+def _detect_db_path() -> str:
+    """Определяет путь к SQLite БД.
+
+    Приоритеты:
+    1) DATABASE_URL из .env, если это sqlite:///...
+    2) /goodmi/time_tracker.db (хостовой путь)
+    3) time_tracker.db рядом со скриптом
+    """
+    project_dir = os.path.dirname(__file__)
+
+    # 1) Пробуем прочитать .env
+    if load_dotenv:
+        try:
+            load_dotenv()
+            db_url = os.getenv('DATABASE_URL', '')
+            if db_url.startswith('sqlite:///'):
+                # поддержка форматов sqlite:///./file.db и sqlite:////abs/path.db
+                raw_path = db_url[len('sqlite:///'):]
+                # Если начинается с '/', это абсолютный путь, иначе относительный к project_dir
+                db_candidate = raw_path if raw_path.startswith('/') else os.path.join(project_dir, raw_path)
+                if os.path.exists(db_candidate):
+                    return os.path.abspath(db_candidate)
+        except Exception:
+            pass
+
+    # 2) Хостовой путь (фактический у вас)
+    host_path = '/goodmi/time_tracker.db'
+    if os.path.exists(host_path):
+        return host_path
+
+    # 3) Локально рядом со скриптом
+    local_path = os.path.join(project_dir, 'time_tracker.db')
+    if os.path.exists(local_path):
+        return local_path
+
+    # Ничего не нашли
+    return ''
+
+
 def backup_database():
-    # Путь к базе данных
-    db_path = os.path.join(os.path.dirname(__file__), 'time_tracker.db')
+    # Путь к базе данных (автоопределение)
+    db_path = _detect_db_path()
 
     # Папка для резервных копий
     backup_dir = os.path.join(os.path.dirname(__file__), 'backups')
@@ -15,8 +59,8 @@ def backup_database():
         os.makedirs(backup_dir)
 
     # Проверяем, существует ли файл базы данных
-    if not os.path.exists(db_path):
-        print(f"Ошибка: файл базы данных не найден по пути {db_path}")
+    if not db_path or not os.path.exists(db_path):
+        print(f"Ошибка: файл базы данных не найден. Проверьте DATABASE_URL или путь. Последний проверенный: '{db_path or 'не определен'}'")
         return False
 
     # Создаем имя файла резервной копии с timestamp
@@ -36,6 +80,7 @@ def backup_database():
     except Exception as e:
         print(f"Ошибка при создании резервной копии: {e}")
         return False
+
 
 def cleanup_old_backups(backup_dir, keep_count=10):
     """Удаляет старые резервные копии, оставляя только последние keep_count файлов"""

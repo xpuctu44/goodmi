@@ -25,7 +25,7 @@ RUN useradd --create-home --shell /bin/bash app && \
 USER app
 
 # Открываем порт
-EXPOSE 8001
+EXPOSE 8000
 
-# Команда запуска
-CMD ["gunicorn", "app.main:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8001"]
+# Команда запуска (слушаем 8000, чтобы совпадало с docker-compose и nginx)
+CMD ["gunicorn", "app.main:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]
