@@ -530,6 +530,73 @@
       .custom-date-picker.visible {
         display: block;
       }
+
+      /* Mobile responsiveness */
+      @media (max-width: 768px) {
+        body {
+          padding: 0;
+          background: #fff;
+        }
+        .container {
+          max-width: 100%;
+          width: 100%;
+          margin: 0;
+          padding: 10px;
+          border-radius: 0;
+          box-shadow: none;
+        }
+        .nav {
+          gap: 6px;
+        }
+        .nav a {
+          flex: 1 1 auto;
+          text-align: center;
+          padding: 10px 8px;
+        }
+        .form-section {
+          padding: 12px;
+          margin-bottom: 12px;
+        }
+        .table th, .table td {
+          padding: 8px;
+        }
+        .scheduling-table {
+          font-size: 0.7em;
+        }
+        .employee-column {
+          min-width: 140px;
+          max-width: 180px;
+        }
+        .date-column {
+          min-width: 42px;
+        }
+        .shift-cell {
+          width: 32px;
+          height: 26px;
+        }
+        .shift-content {
+          font-size: 0.58em;
+        }
+        .month-selector form,
+        form[action="/admin/scheduling-table"],
+        form[action="/admin/schedule"],
+        form[action="/admin/reports"] {
+          display: grid !important;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+        }
+        .shift-legend {
+          gap: 8px;
+          padding: 8px;
+          font-size: 0.7em;
+        }
+        .store-group-header td {
+          padding: 8px !important;
+        }
+        .stats-grid {
+          gap: 10px;
+        }
+      }
     </style>
   </head>
   <body>
