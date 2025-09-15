@@ -345,6 +345,61 @@
               {% endif %}
             </div>
             {% endif %}
+
+            {% if user.role == 'employee' and employee_store and coworkers %}
+            <div class="attendance-section" style="margin-top: 20px; text-align: left;">
+              <h3>👥 График коллег — {{ employee_store.name }}</h3>
+
+              <div style="overflow-x: auto; margin-top: 10px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.85em;">
+                  <thead>
+                    <tr>
+                      <th style="position: sticky; left: 0; background: #f8f9fa; z-index: 2; padding: 8px; border: 1px solid #dee2e6; text-align: left; min-width: 180px;">Сотрудник</th>
+                      {% for d in month_dates %}
+                      <th style="padding: 6px; border: 1px solid #dee2e6; text-align: center; min-width: 46px; background: #f8f9fa;">{{ d.strftime('%d') }}</th>
+                      {% endfor %}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for emp in coworkers %}
+                    <tr>
+                      <td style="position: sticky; left: 0; background: #fff; z-index: 1; padding: 6px 8px; border: 1px solid #dee2e6;">
+                        {{ emp.full_name or emp.email }}
+                      </td>
+                      {% for d in month_dates %}
+                      {% set entry = coworker_schedule_map.get((emp.id, d)) %}
+                      <td style="padding: 4px; border: 1px solid #dee2e6; text-align: center; font-size: 0.8em;">
+                        {% if entry %}
+                          {% if entry.shift_type == 'off' %}
+                            <span style="color: #dc3545; font-weight: 600;">О</span>
+                          {% elif entry.shift_type == 'vacation' %}
+                            <span style="color: #28a745; font-weight: 600;">Отп</span>
+                          {% elif entry.shift_type == 'sick' %}
+                            <span style="color: #ffc107; font-weight: 600;">Б</span>
+                          {% elif entry.shift_type == 'weekend' %}
+                            <span style="color: #6c757d; font-weight: 600;">В</span>
+                          {% else %}
+                            {% if entry.start_time and entry.end_time %}
+                              <span style="color: #007bff; font-weight: 600;">{{ entry.start_time.strftime('%H:%M') }}</span>
+                            {% else %}
+                              <span style="color: #6c757d;">—</span>
+                            {% endif %}
+                          {% endif %}
+                        {% else %}
+                          <span style="color: #6c757d;">—</span>
+                        {% endif %}
+                      </td>
+                      {% endfor %}
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              <div style="margin-top: 8px; font-size: 0.85em; color: #666;">
+                Обозначения: Р — рабочая смена, О — отгул, В — выходной, Отп — отпуск, Б — больничный
+              </div>
+            </div>
+            {% endif %}
           {% else %}
             <!-- Админская секция учета времени -->
             <div class="attendance-section">

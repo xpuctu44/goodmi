@@ -138,6 +138,11 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     # Get current month schedule for employees
     employee_schedule = []
     calendar_data = []
+    # Coworkers schedule (same store)
+    coworkers = []
+    month_dates = []
+    coworker_schedule_map = {}
+    employee_store = None
     if user.role == "employee":
         now = _get_moscow_time()
         current_year = now.year
@@ -149,7 +154,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         last_day_of_month = monthrange(current_year, current_month)[1]
         last_day = date(current_year, current_month, last_day_of_month)
 
-        # Get published schedule entries for the current month
+        # Get published schedule entries for the current month (current user)
         employee_schedule = (
             db.query(ScheduleEntry)
             .filter(
@@ -228,6 +233,40 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                     })
             calendar_data.append(week_data)
 
+        # Coworkers schedule for the same store
+        if user.store_id:
+            employee_store = db.get(Store, user.store_id)
+            # Month dates list for table
+            month_dates = [date(current_year, current_month, d) for d in range(1, last_day_of_month + 1)]
+
+            coworkers = (
+                db.query(User)
+                .filter(
+                    User.is_active == True,
+                    User.role == 'employee',
+                    User.store_id == user.store_id,
+                )
+                .order_by(User.full_name, User.email)
+                .all()
+            )
+
+            if coworkers:
+                # Fetch all published entries for coworkers in one query
+                coworker_entries = (
+                    db.query(ScheduleEntry)
+                    .filter(
+                        ScheduleEntry.user_id.in_([c.id for c in coworkers]),
+                        ScheduleEntry.work_date >= first_day,
+                        ScheduleEntry.work_date <= last_day,
+                        ScheduleEntry.published == True,
+                    )
+                    .all()
+                )
+
+                # Build map: (user_id, work_date) -> entry
+                for entry in coworker_entries:
+                    coworker_schedule_map[(entry.user_id, entry.work_date)] = entry
+
     # Calculate total work time for today
     total_work_hours_today = 0
     if user.role == "employee":
@@ -246,6 +285,11 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "employee_schedule": employee_schedule,
             "calendar_data": calendar_data,
             "russian_days": ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'] if user.role == "employee" else [],
+            # Coworkers schedule context
+            "coworkers": coworkers,
+            "employee_store": employee_store,
+            "month_dates": month_dates,
+            "coworker_schedule_map": coworker_schedule_map,
         },
     )
 

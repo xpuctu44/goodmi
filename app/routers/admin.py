@@ -1419,7 +1419,7 @@ def admin_employees(request: Request, db: Session = Depends(get_db)):
 def assign_store_to_employee(
     request: Request,
     employee_id: int = Form(...),
-    store_id: int = Form(None),
+    store_id: str = Form(""),
     db: Session = Depends(get_db)
 ):
     result = _ensure_admin(request, db)
@@ -1432,8 +1432,16 @@ def assign_store_to_employee(
         if not employee:
             return RedirectResponse(url="/admin/employees?error=employee_not_found", status_code=status.HTTP_303_SEE_OTHER)
         
+        # Преобразуем store_id: пустая строка -> None, иначе int
+        parsed_store_id = None
+        if store_id is not None and str(store_id).strip() != "":
+            try:
+                parsed_store_id = int(str(store_id).strip())
+            except Exception:
+                parsed_store_id = None
+
         # Назначаем магазин (может быть None для снятия назначения)
-        employee.store_id = store_id if store_id else None
+        employee.store_id = parsed_store_id
         db.commit()
         
         return RedirectResponse(url="/admin/employees?success=store_assigned", status_code=status.HTTP_303_SEE_OTHER)
