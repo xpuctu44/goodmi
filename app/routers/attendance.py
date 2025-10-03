@@ -1,7 +1,7 @@
 from datetime import datetime, date, timezone, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Request, status, Form
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -10,6 +10,10 @@ from app.database import get_db
 from app.models import Attendance, User, AllowedIP, ScheduleEntry, Store
 from fastapi.responses import StreamingResponse
 import io
+import os
+from app.security import create_access_token, SECRET_KEY
+from datetime import timedelta
+import hmac, hashlib, time, base64
 
 
 router = APIRouter()
@@ -94,6 +98,35 @@ def _calculate_total_work_time_today(user_id: int, db: Session, current_time: da
     return total_work_seconds / 3600.0  # Convert to hours
 
 
+def _auto_close_overdue_session(user_id: int, db: Session) -> None:
+    """Закрывает зависшие смены предыдущих дней с нулевыми часами.
+
+    Правило: если есть активная смена (ended_at is NULL), но её work_date < сегодня
+    (по московскому времени), то такая смена закрывается с ended_at = started_at,
+    hours = 0. Это предотвращает накопление времени, если сотрудник не нажал
+    «Я ушел».
+    """
+    now = _get_moscow_time()
+    today = now.date()
+    stale = (
+        db.query(Attendance)
+        .filter(
+            Attendance.user_id == user_id,
+            Attendance.ended_at.is_(None),
+            Attendance.work_date < today,
+        )
+        .all()
+    )
+    if not stale:
+        return
+
+    for rec in stale:
+        # Закрываем на нуле: ended_at = started_at, hours = 0
+        rec.ended_at = rec.started_at
+        rec.hours = 0.0
+        db.add(rec)
+    db.commit()
+
 def _check_ip_allowed(request: Request, db: Session) -> bool:
     """Проверяет, разрешен ли IP адрес для отметки прихода/ухода"""
     # Получаем IP адрес клиента
@@ -128,6 +161,10 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
 
+    # Перед любыми вычислениями: авто-закрытие зависших смен предыдущих дней
+    if user.role == "employee":
+        _auto_close_overdue_session(user.id, db)
+
     # Only employee flow shows single toggle button
     active = (
         db.query(Attendance)
@@ -135,9 +172,11 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         .first()
     )
 
-    # Get current month schedule for employees
+    # Get current and next month schedule for employees
     employee_schedule = []
     calendar_data = []
+    employee_schedule_next = []
+    calendar_data_next = []
     # Coworkers schedule (same store)
     coworkers = []
     month_dates = []
@@ -233,6 +272,57 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                     })
             calendar_data.append(week_data)
 
+        # ===== Next month calendar and schedule for employee =====
+        # Compute next month/year
+        if current_month == 12:
+            next_month = 1
+            next_year = current_year + 1
+        else:
+            next_month = current_month + 1
+            next_year = current_year
+
+        from calendar import monthrange as _monthrange, monthcalendar as _monthcalendar
+        next_first_day = date(next_year, next_month, 1)
+        next_last_day = _monthrange(next_year, next_month)[1]
+        next_last_date = date(next_year, next_month, next_last_day)
+
+        # Get published schedule entries for next month (current user)
+        employee_schedule_next = (
+            db.query(ScheduleEntry)
+            .filter(
+                ScheduleEntry.user_id == user.id,
+                ScheduleEntry.work_date >= next_first_day,
+                ScheduleEntry.work_date <= next_last_date,
+                ScheduleEntry.published == True
+            )
+            .order_by(ScheduleEntry.work_date)
+            .all()
+        )
+
+        # Attendance is only relevant for current/past dates; skip for next month
+        # Build calendar structure for next month
+        next_cal = _monthcalendar(next_year, next_month)
+        schedule_dict_next = {entry.work_date: entry for entry in employee_schedule_next}
+
+        calendar_data_next = []
+        for week in next_cal:
+            week_data = []
+            for day in week:
+                if day == 0:
+                    week_data.append({'day': '', 'schedule': None, 'attendance': [], 'is_empty': True})
+                else:
+                    day_date = date(next_year, next_month, day)
+                    schedule_entry = schedule_dict_next.get(day_date)
+                    week_data.append({
+                        'day': day,
+                        'date': day_date,
+                        'schedule': schedule_entry,
+                        'attendance': [],
+                        'is_empty': False,
+                        'is_today': False
+                    })
+            calendar_data_next.append(week_data)
+
         # Coworkers schedule for the same store
         if user.store_id:
             employee_store = db.get(Store, user.store_id)
@@ -284,12 +374,16 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "total_work_hours_today": total_work_hours_today,
             "employee_schedule": employee_schedule,
             "calendar_data": calendar_data,
+                "employee_schedule_next": employee_schedule_next,
+                "calendar_data_next": calendar_data_next,
             "russian_days": ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'] if user.role == "employee" else [],
             # Coworkers schedule context
             "coworkers": coworkers,
             "employee_store": employee_store,
             "month_dates": month_dates,
             "coworker_schedule_map": coworker_schedule_map,
+            "telegram_bot_username": os.getenv("TELEGRAM_BOT_USERNAME", ""),
+            "now_ts": int(_get_moscow_time().timestamp())
         },
     )
 
@@ -303,6 +397,9 @@ def start_attendance(request: Request, db: Session = Depends(get_db)):
     # Проверяем IP адрес
     if not _check_ip_allowed(request, db):
         return RedirectResponse(url="/dashboard?error=ip_not_allowed", status_code=status.HTTP_303_SEE_OTHER)
+
+    # Перед стартом новой смены закроем зависшие смены прошлых дней
+    _auto_close_overdue_session(user.id, db)
 
     now = _get_moscow_time()
     today = now.date()
@@ -364,6 +461,9 @@ def qr_start(token: str, request: Request, db: Session = Depends(get_db)):
     # Optional: ensure user belongs to the store if assigned
     if user.store_id and user.store_id != store.id:
         return RedirectResponse(url="/dashboard?error=qr_wrong_store", status_code=status.HTTP_303_SEE_OTHER)
+
+    # Перед запуском по QR: авто-закрытие зависших смен
+    _auto_close_overdue_session(user.id, db)
 
     # Start attendance (QR bypasses IP check as presence proof)
     existing = (
@@ -490,3 +590,218 @@ def stop_attendance(request: Request, db: Session = Depends(get_db)):
     db.add(active)
     db.commit()
     return RedirectResponse(url="/dashboard", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/employee/link-telegram", include_in_schema=False)
+def employee_link_telegram(
+    request: Request,
+    phone: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    user = _get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
+    if user.role != "employee":
+        return RedirectResponse(url="/dashboard?error=forbidden", status_code=status.HTTP_303_SEE_OTHER)
+
+    # Normalize phone: keep digits, plus sign at start
+    import re
+    digits = re.sub(r"\D", "", phone)
+    if digits.startswith("8") and len(digits) == 11:
+        digits = "7" + digits[1:]
+    if len(digits) < 10:
+        return RedirectResponse(url="/dashboard?error=bad_phone", status_code=status.HTTP_303_SEE_OTHER)
+
+    normalized = "+" + digits if not digits.startswith("+") else digits
+
+    # Save phone to user profile (unique if possible)
+    try:
+        user.phone = normalized
+        db.add(user)
+        db.commit()
+    except Exception:
+        db.rollback()
+        return RedirectResponse(url="/dashboard?error=phone_conflict", status_code=status.HTTP_303_SEE_OTHER)
+
+    # Provide simple instruction notice via redirect
+    return RedirectResponse(url="/dashboard?success=phone_saved", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.get("/employee/telegram-link", include_in_schema=False)
+def employee_telegram_link(request: Request, db: Session = Depends(get_db)):
+    user = _get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
+    if user.role != "employee":
+        return RedirectResponse(url="/dashboard?error=forbidden", status_code=status.HTTP_303_SEE_OTHER)
+
+    # Require saved phone to avoid binding the wrong account unintentionally
+    if not user.phone:
+        return RedirectResponse(url="/dashboard?error=phone_required", status_code=status.HTTP_303_SEE_OTHER)
+
+    # Create compact start token (<64 chars) for Telegram deep-link
+    ts = int(time.time())
+    payload = f"{user.id}.{ts}"
+    sig = hmac.new(SECRET_KEY.encode(), payload.encode(), hashlib.sha256).hexdigest()[:16]
+    token = f"{payload}.{sig}"
+    bot_username = os.getenv("TELEGRAM_BOT_USERNAME", "").strip()
+    if not bot_username:
+        # Fallback: try to read from .env file if present
+        try:
+            env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
+            if os.path.exists(env_path):
+                with open(env_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line.startswith("TELEGRAM_BOT_USERNAME="):
+                            bot_username = line.split("=", 1)[1].strip()
+                            break
+        except Exception:
+            bot_username = bot_username
+    if not bot_username:
+        return RedirectResponse(url="/dashboard?error=bot_username_missing", status_code=status.HTTP_303_SEE_OTHER)
+
+    deeplink = f"https://t.me/{bot_username}?start={token}"
+    return RedirectResponse(url=deeplink, status_code=status.HTTP_302_FOUND)
+
+# Fallback alias, just in case of caching or old links
+@router.get("/employee/tg-link", include_in_schema=False)
+def employee_tg_link_alias(request: Request, db: Session = Depends(get_db)):
+    return employee_telegram_link(request, db)
+
+
+@router.get("/employee/tg-web-confirm", include_in_schema=False)
+def employee_tg_web_confirm(request: Request, db: Session = Depends(get_db)):
+    user = _get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
+
+    # Require allowed IP
+    if not _check_ip_allowed(request, db):
+        return RedirectResponse(url="/dashboard?error=ip_not_allowed", status_code=status.HTTP_303_SEE_OTHER)
+
+    # Set confirmation window for 15 minutes
+    until = _get_moscow_time() + timedelta(minutes=15)
+    user.tg_web_confirm_until = until
+    db.add(user)
+    db.commit()
+
+    return RedirectResponse(url="/dashboard?success=tg_web_confirm", status_code=status.HTTP_303_SEE_OTHER)
+
+
+# ===== Telegram WebApp (in-bot web UI) =====
+def _generate_compact_token(user_id: int, ttl_seconds: int = 600) -> str:
+    ts = int(time.time())
+    payload = f"{user_id}.{ts}"
+    sig = hmac.new(SECRET_KEY.encode(), payload.encode(), hashlib.sha256).hexdigest()[:16]
+    return f"{payload}.{sig}"
+
+
+def _verify_compact_token(token: str, max_age_seconds: int = 3600) -> int | None:
+    try:
+        parts = token.split('.')
+        if len(parts) != 3:
+            return None
+        user_part, ts_part, sig_part = parts
+        payload = f"{user_part}.{ts_part}"
+        expected = hmac.new(SECRET_KEY.encode(), payload.encode(), hashlib.sha256).hexdigest()[:16]
+        if not hmac.compare_digest(sig_part, expected):
+            return None
+        if abs(int(time.time()) - int(ts_part)) > max_age_seconds:
+            return None
+        return int(user_part)
+    except Exception:
+        return None
+
+
+@router.get("/tg/app", include_in_schema=False)
+def tg_app(request: Request, token: str = "", db: Session = Depends(get_db)):
+    user_id = _verify_compact_token(token) if token else None
+    user = db.get(User, user_id) if user_id else None
+    return templates.TemplateResponse(
+        "tg_app.html",
+        {
+            "request": request,
+            "title": "Time Tracker",
+            "user": user,
+            "token": token or "",
+            "error": None if user else "invalid_token",
+        },
+    )
+
+
+@router.post("/tgapi/checkin", include_in_schema=False)
+def tgapi_checkin(token: str = Form(...), db: Session = Depends(get_db)):
+    user_id = _verify_compact_token(token)
+    if not user_id:
+        return JSONResponse({"ok": False, "error": "invalid_token"}, status_code=401)
+    user = db.get(User, user_id)
+    if not user or not user.is_active:
+        return JSONResponse({"ok": False, "error": "user_inactive"}, status_code=403)
+
+    # Авто-закрытие зависших смен перед началом новой
+    _auto_close_overdue_session(user.id, db)
+
+    now = _get_moscow_time()
+    today = now.date()
+    existing = (
+        db.query(Attendance)
+        .filter(Attendance.user_id == user.id, Attendance.work_date == today, Attendance.ended_at.is_(None))
+        .first()
+    )
+    if existing:
+        return JSONResponse({"ok": True, "status": "already_active"})
+
+    record = Attendance(user_id=user.id, started_at=now, work_date=today)
+    db.add(record)
+    db.commit()
+    return JSONResponse({"ok": True, "status": "started", "time": now.strftime('%H:%M')})
+
+
+@router.post("/tgapi/checkout", include_in_schema=False)
+def tgapi_checkout(token: str = Form(...), db: Session = Depends(get_db)):
+    user_id = _verify_compact_token(token)
+    if not user_id:
+        return JSONResponse({"ok": False, "error": "invalid_token"}, status_code=401)
+    user = db.get(User, user_id)
+    if not user or not user.is_active:
+        return JSONResponse({"ok": False, "error": "user_inactive"}, status_code=403)
+
+    now = _get_moscow_time()
+    today = now.date()
+    active = (
+        db.query(Attendance)
+        .filter(Attendance.user_id == user.id, Attendance.work_date == today, Attendance.ended_at.is_(None))
+        .first()
+    )
+    if not active:
+        return JSONResponse({"ok": False, "error": "no_active"}, status_code=400)
+
+    # Sum all sessions including current
+    active.ended_at = now
+    today_records = (
+        db.query(Attendance)
+        .filter(Attendance.user_id == user.id, Attendance.work_date == today)
+        .order_by(Attendance.started_at)
+        .all()
+    )
+    total = 0
+    for rec in today_records:
+        if rec.ended_at is not None:
+            sa = rec.started_at
+            ea = rec.ended_at
+            if sa.tzinfo is None:
+                sa = sa.replace(tzinfo=timezone.utc)
+            if ea.tzinfo is None:
+                ea = ea.replace(tzinfo=timezone.utc)
+            total += (ea - sa).total_seconds()
+    active.hours = round(total / 3600.0, 4)
+    db.add(active)
+    db.commit()
+    return JSONResponse({"ok": True, "status": "stopped", "time": now.strftime('%H:%M')})
+
+
+# Public test endpoint to verify deployment/version
+@router.get("/tg-link-test", include_in_schema=False)
+def tg_link_test():
+    return {"status": "ok", "version": "v2"}

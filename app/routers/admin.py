@@ -78,6 +78,36 @@ def admin_root(request: Request, db: Session = Depends(get_db)):
     )
 
 
+@router.get("/admin/problem-shifts", include_in_schema=False)
+def admin_problem_shifts(request: Request, db: Session = Depends(get_db)):
+    result = _ensure_admin(request, db)
+    if isinstance(result, RedirectResponse):
+        return result
+
+    # Все незакрытые смены до текущей даты (исключаем сегодняшние), отсортированы по дате убыв.
+    today = _get_moscow_time().date()
+    open_attendances = (
+        db.query(Attendance)
+        .filter(
+            Attendance.ended_at.is_(None),
+            Attendance.work_date < today,
+        )
+        .order_by(Attendance.work_date.desc(), Attendance.started_at.desc())
+        .all()
+    )
+
+    return templates.TemplateResponse(
+        "admin.html",
+        {
+            "request": request,
+            "title": "Админ — проблемные смены",
+            "active_tab": "problem_shifts",
+            "open_attendances": open_attendances,
+            "message": "Незакрытые смены сотрудников (для редактирования)",
+        },
+    )
+
+
 @router.get("/admin/planning", include_in_schema=False)
 def admin_planning(request: Request, db: Session = Depends(get_db)):
     result = _ensure_admin(request, db)
@@ -1378,6 +1408,42 @@ def store_qr_stop_image(store_id: int, request: Request, db: Session = Depends(g
     qr_url = f"{base_url}/q/stop/{store.qr_token}"
 
     img = qrcode.make(qr_url)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="image/png")
+
+
+@router.get("/admin/stores/{store_id}/qr-bot.png", include_in_schema=False)
+def store_qr_bot_image(store_id: int, request: Request, db: Session = Depends(get_db)):
+    result = _ensure_admin(request, db)
+    if isinstance(result, RedirectResponse):
+        return result
+
+    store = db.get(Store, store_id)
+    if not store or not store.qr_token:
+        return RedirectResponse(url="/admin/stores?error=no_qr", status_code=status.HTTP_303_SEE_OTHER)
+
+    bot_username = os.getenv("TELEGRAM_BOT_USERNAME", "").strip()
+    if not bot_username:
+        # Fallback: try to read from .env in app root (container/host)
+        try:
+            env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
+            if os.path.exists(env_path):
+                with open(env_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line.startswith("TELEGRAM_BOT_USERNAME="):
+                            bot_username = line.split("=", 1)[1].strip()
+                            break
+        except Exception:
+            bot_username = bot_username
+    if not bot_username:
+        return RedirectResponse(url="/admin/stores?error=bot_username_missing", status_code=status.HTTP_303_SEE_OTHER)
+
+    bot_link = f"https://t.me/{bot_username}?start=qr_{store.qr_token}"
+
+    img = qrcode.make(bot_link)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     buf.seek(0)
