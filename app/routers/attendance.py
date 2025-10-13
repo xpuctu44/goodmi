@@ -58,6 +58,27 @@ def _to_moscow_time(moscow_time: datetime) -> datetime:
     return moscow_time.astimezone(moscow_tz)
 
 
+def _get_daily_quote(today: date) -> str:
+    """Возвращает детерминированную «смешную цитату Джейсона Стетхема» на день.
+
+    Выбираем по индексу из списка, зависящему от даты, чтобы за один день у всех
+    показывалась одинаковая, но менялась на следующий день.
+    """
+    quotes = [
+        "Если работа не идёт — подтолкни. А лучше — подтолкни себя на работу.",
+        "Опоздал на минуту? Сделай вид, что бежал весь час.",
+        "Кофе не делает меня быстрее. Я просто быстрее иду за кофе.",
+        "Главный секрет продуктивности — вовремя нажать ‘Я пришёл’.",
+        "Если хочется всё бросить — брось взгляд в расписание и иди дальше.",
+        "Я не просыпаюсь поздно. Я работаю в другом часовом поясе успеха.",
+        "План на день простой: прийти, победить, уйти красиво.",
+        "Никаких отговорок. Только кнопка и действие.",
+        "Дисциплина — это когда ‘Я ушёл’ нажимается вовремя.",
+        "У меня нет плохих дней. Есть дни с дополнительным кофе.",
+    ]
+    idx = (today.toordinal()) % len(quotes)
+    return quotes[idx]
+
 def _calculate_total_work_time_today(user_id: int, db: Session, current_time: datetime = None) -> float:
     """Подсчитывает общее время работы за сегодня, включая активную сессию"""
     if current_time is None:
@@ -362,6 +383,11 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     if user.role == "employee":
         total_work_hours_today = _calculate_total_work_time_today(user.id, db)
 
+    # Daily quote for employees
+    daily_quote = None
+    if user.role == "employee":
+        daily_quote = _get_daily_quote(_get_moscow_time().date())
+
     return templates.TemplateResponse(
         "dashboard.html",
         {
@@ -383,7 +409,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "month_dates": month_dates,
             "coworker_schedule_map": coworker_schedule_map,
             "telegram_bot_username": os.getenv("TELEGRAM_BOT_USERNAME", ""),
-            "now_ts": int(_get_moscow_time().timestamp())
+            "now_ts": int(_get_moscow_time().timestamp()),
+            "daily_quote": daily_quote,
         },
     )
 

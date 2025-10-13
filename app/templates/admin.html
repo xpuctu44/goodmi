@@ -8,16 +8,17 @@
       body {
         font-family: Arial, sans-serif;
         margin: 0;
-        padding: 20px;
-        background: #f5f5f5;
+        padding: 0; /* убираем поля, чтобы занять всю ширину */
+        background: #ffffff; /* без серых полос по краям */
       }
       .container {
-        max-width: 1200px;
-        margin: 0 auto;
+        max-width: 100%; /* занимаем всю ширину экрана */
+        width: 100%;
+        margin: 0;
         background: white;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 16px 20px; /* аккуратные внутренние отступы */
+        border-radius: 0; /* без скруглений как у карточки */
+        box-shadow: none; /* без тени по краям */
       }
       .nav {
         display: flex;
@@ -128,6 +129,7 @@
         display: inline-block;
         margin-right: 10px;
         margin-bottom: 10px;
+        transition: box-shadow 0.25s ease, transform 0.15s ease;
       }
       .btn-primary {
         background: #007bff;
@@ -135,6 +137,8 @@
       }
       .btn-primary:hover {
         background: #0056b3;
+        box-shadow: 0 0 10px rgba(0,123,255,0.65), 0 0 22px rgba(0,123,255,0.45), 0 0 44px rgba(0,123,255,0.25);
+        transform: translateY(-1px);
       }
       .btn-danger {
         background: #dc3545;
@@ -142,6 +146,8 @@
       }
       .btn-danger:hover {
         background: #c82333;
+        box-shadow: 0 0 10px rgba(220,53,69,0.6), 0 0 22px rgba(220,53,69,0.4), 0 0 44px rgba(220,53,69,0.2);
+        transform: translateY(-1px);
       }
       .btn-success {
         background: #28a745;
@@ -149,6 +155,8 @@
       }
       .btn-success:hover {
         background: #218838;
+        box-shadow: 0 0 10px rgba(40,167,69,0.6), 0 0 22px rgba(40,167,69,0.4), 0 0 44px rgba(40,167,69,0.2);
+        transform: translateY(-1px);
       }
       .btn-warning {
         background: #ffc107;
@@ -156,6 +164,8 @@
       }
       .btn-warning:hover {
         background: #e0a800;
+        box-shadow: 0 0 10px rgba(255,193,7,0.6), 0 0 22px rgba(255,193,7,0.4), 0 0 44px rgba(255,193,7,0.2);
+        transform: translateY(-1px);
       }
       .table {
         width: 100%;
@@ -250,6 +260,7 @@
         padding: 3px 4px;
         text-align: center;
         vertical-align: middle;
+        background-clip: padding-box; /* avoid overlap artifacts when sticky */
       }
       .scheduling-table th {
         background: #f8f9fa;
@@ -259,6 +270,16 @@
         z-index: 10;
         font-size: 0.7em;
         padding: 4px 2px;
+        /* Skeuomorphic depth */
+        background-image: linear-gradient(#ffffff, #f1f3f5);
+        box-shadow: inset 0 1px 0 #ffffff, inset 0 -1px 0 #e9ecef, 0 2px 6px rgba(0,0,0,0.06);
+        border-bottom: 1px solid #dfe3e6;
+      }
+      /* Ensure the top-left header cell (employee column header) sits above */
+      .scheduling-table thead th.employee-column {
+        z-index: 30;
+        background-image: linear-gradient(#ffffff, #eef2f7);
+        box-shadow: inset 0 1px 0 #ffffff, inset 0 -1px 0 #e2e8f0, 0 2px 8px rgba(0,0,0,0.08);
       }
       .employee-column {
         min-width: 120px;
@@ -271,22 +292,37 @@
         font-size: 0.7em;
         padding: 4px 6px;
       }
+      /* Make first body column (employee names) sticky as well */
+      .employee-name {
+        position: sticky;
+        left: 0;
+        background: #f8f9fa; /* match header background */
+        z-index: 21; /* above header row background cells */
+        /* Skeuomorphic panel look */
+        background-image: linear-gradient(#ffffff, #f1f3f5);
+        box-shadow: inset 0 1px 0 #ffffff, inset -1px 0 0 #e9ecef, 2px 0 6px rgba(0,0,0,0.05);
+        border-right: 1px solid #dfe3e6;
+      }
+      /* Subtle divider shadow where sticky column overlaps scrolling cells */
+      .scheduling-table tbody tr td.shift-cell:first-of-type {
+        box-shadow: -1px 0 0 #e9ecef inset;
+      }
       .date-column {
-        min-width: 45px;
-        max-width: 50px;
-        font-size: 0.65em;
-        padding: 2px;
+        min-width: 90px;  /* ~x2 */
+        max-width: 100px;
+        font-size: 0.9em;
+        padding: 6px 4px;
       }
       .shift-cell {
-        width: 35px;
-        height: 28px;
-        padding: 1px !important;
+        width: 70px;     /* ~x2 */
+        height: 56px;    /* ~x2 */
+        padding: 2px 3px !important;
         text-align: center;
         border: 1px solid #ddd;
         cursor: pointer;
         position: relative;
         user-select: none;
-        font-size: 0.65em;
+        font-size: 0.85em;
       }
       .shift-cell:hover {
         border-color: #007bff;
@@ -400,14 +436,14 @@
         border-color: #0056b3;
       }
       .shift-content {
-        font-size: 0.6em;
-        font-weight: bold;
+        font-size: 1em; /* larger text in cells */
+        font-weight: 800; /* bolder for readability */
         line-height: 1.1;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
         color: #333;
-        padding: 1px 0;
+        padding: 2px 0;
       }
       .shift-type {
         display: block;
@@ -415,9 +451,10 @@
       }
       .shift-time {
         display: block;
-        font-size: 0.5em;
-        opacity: 0.8;
-        line-height: 1;
+        font-size: 0.9em; /* bigger time */
+        font-weight: 700;
+        opacity: 0.9;
+        line-height: 1.1;
       }
 
       /* Text colors for better contrast on colored backgrounds */
@@ -432,6 +469,19 @@
       /* Special text color for weekend (yellow background) */
       .shift-cell[data-shift-type="weekend"] .shift-content {
         color: #856404;
+      }
+
+      /* Agreed off (согласованный выходной) - bright orange */
+      .shift-cell[data-shift-type="agreed_off"] {
+        background: #ffedd5; /* light orange */
+        border-color: #fb923c; /* orange-400 */
+      }
+      .shift-cell[data-shift-type="agreed_off"]:hover {
+        background: #fed7aa; /* orange-300 */
+        border-color: #f59e0b; /* amber-500 */
+      }
+      .shift-cell[data-shift-type="agreed_off"] .shift-content {
+        color: #9a3412; /* deep orange text for contrast */
       }
       .shift-dropdown-container {
         display: none;
@@ -833,6 +883,10 @@
                 <span>Выходной</span>
               </div>
               <div class="legend-item">
+                <div class="legend-color" style="background: #ffedd5; border: 1px solid #fb923c;"></div>
+                <span>Согласованный выходной</span>
+              </div>
+              <div class="legend-item">
                 <div class="legend-color" style="background: #f8d7da; border: 1px solid #dc3545;"></div>
                 <span>Отгул</span>
               </div>
@@ -895,7 +949,7 @@
                       <div class="shift-content">
                         {% if existing_shift %}
                         <span class="shift-type">
-                          {% if existing_shift.shift_type == 'work' %}Р{% elif existing_shift.shift_type == 'off' %}О{% elif existing_shift.shift_type == 'weekend' %}В{% elif existing_shift.shift_type == 'vacation' %}Отп{% elif existing_shift.shift_type == 'sick' %}Б{% endif %}
+                          {% if existing_shift.shift_type == 'work' %}Р{% elif existing_shift.shift_type == 'off' %}О{% elif existing_shift.shift_type == 'weekend' %}В{% elif existing_shift.shift_type == 'agreed_off' %}СВ{% elif existing_shift.shift_type == 'vacation' %}Отп{% elif existing_shift.shift_type == 'sick' %}Б{% endif %}
                         </span>
                         {% if existing_shift.start_time %}
                         <span class="shift-time">{{ existing_shift.start_time.strftime('%H:%M') }}</span>
@@ -1031,6 +1085,7 @@
                   {% for work_date in month_dates %}
                   {% set cell_key = employee.id ~ '_' ~ work_date %}
                   {% set existing_shift = schedule_dict[cell_key] %}
+                  {% set att = attendance_map[cell_key] if attendance_map is defined and cell_key in attendance_map else None %}
                   <td class="shift-cell"
                       data-employee-id="{{ employee.id }}"
                       data-date="{{ work_date }}"
@@ -1045,6 +1100,16 @@
                       {% endif %}
                       {% else %}
                       <span class="shift-type">-</span>
+                      {% endif %}
+                      {% if att and (att.start or att.end) %}
+                      <div style="font-size: 0.55em; opacity: 0.9; margin-top: 2px; line-height: 1; color: #0c5460;">
+                        {% if att.start %}
+                          прих: {{ att.start }}
+                        {% endif %}
+                        {% if att.end %}
+                          {% if att.start %} · {% endif %}ух: {{ att.end }}
+                        {% endif %}
+                      </div>
                       {% endif %}
                     </div>
                   </td>

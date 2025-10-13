@@ -8,16 +8,17 @@
       body {
         font-family: Arial, sans-serif;
         margin: 0;
-        padding: 20px;
-        background: #f5f5f5;
+        padding: 0;
+        background: #ffffff;
       }
       .container {
-        max-width: 1200px;
-        margin: 0 auto;
+        max-width: 100%;
+        width: 100%;
+        margin: 0;
         background: white;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 16px 20px;
+        border-radius: 0;
+        box-shadow: none;
       }
       .dashboard-container {
         max-width: 800px;
@@ -57,12 +58,13 @@
         font-size: 1.3em;
         font-weight: 600;
         cursor: pointer;
-        transition: all 0.3s;
+        transition: all 0.3s, box-shadow 0.25s ease;
         margin: 10px;
       }
       .attendance-button:hover {
         background: #0056b3;
         transform: translateY(-2px);
+        box-shadow: 0 0 10px rgba(0,123,255,0.65), 0 0 22px rgba(0,123,255,0.45), 0 0 44px rgba(0,123,255,0.25);
       }
       .attendance-button.stop {
         background: #dc3545;
@@ -70,6 +72,7 @@
       }
       .attendance-button.stop:hover {
         background: #c82333;
+        box-shadow: 0 0 10px rgba(220,53,69,0.6), 0 0 22px rgba(220,53,69,0.4), 0 0 44px rgba(220,53,69,0.2);
       }
       .time-info {
         color: #666;
@@ -300,12 +303,22 @@
                   </div>
                   <div style="margin-top: 10px; font-size: 0.9em; color: #666;">
                     💼 Статус: <strong style="color: #28a745;">На работе</strong>
+                    {% if daily_quote %}
+                    <div style="margin-top: 6px; font-size: 0.9em; color: #495057;">
+                      💬 {{ daily_quote }}
+                    </div>
+                    {% endif %}
                   </div>
                 </div>
               {% else %}
                 <div class="time-info">
                   📅 Готов к началу работы
                   <br>💼 Статус: <strong style="color: #6c757d;">Не на работе</strong>
+                  {% if daily_quote %}
+                  <div style="margin-top: 6px; font-size: 0.9em; color: #495057;">
+                    💬 {{ daily_quote }}
+                  </div>
+                  {% endif %}
                 </div>
               {% endif %}
               
@@ -324,7 +337,7 @@
 
             {% if user.role == 'employee' %}
             <div class="attendance-section">
-              <h3>📅 Мой график работы на текущий месяц</h3>
+              <h3>📅 Мой график работы — текущий месяц</h3>
 
               <!-- Calendar Header -->
               <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 10px; margin-top: 20px;">
@@ -393,6 +406,111 @@
               {% if not employee_schedule %}
                 <div style="text-align: center; color: #666; margin-top: 20px;">
                   На текущий месяц график еще не составлен
+                </div>
+              {% endif %}
+            </div>
+
+            <div class="attendance-section">
+              <h3>🤖 Подключение Telegram-бота</h3>
+              <div style="font-size: 0.8em; color:#999; margin-bottom: 6px;">Версия раздела: v2</div>
+              <div style="text-align: left; color: #444; margin-bottom: 12px;">
+                Чтобы отмечаться через Telegram-бота, укажите номер телефона, к которому привязан ваш Telegram.
+              </div>
+              <form method="post" action="/employee/link-telegram" style="margin-top: 10px; display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap;">
+                <input name="phone" type="tel" placeholder="Ваш номер телефона" value="{{ user.phone or '' }}" required
+                       style="padding: 10px 12px; border: 1px solid #ced4da; border-radius: 6px; min-width: 260px;">
+                <button type="submit" class="attendance-button" style="padding: 12px 18px;">Сохранить номер</button>
+              </form>
+              <div style="margin-top: 10px; font-size: 0.9em; color: #666;">
+                После сохранения номера можно открыть бота по ссылке ниже — аккаунт привяжется автоматически.
+              </div>
+              <div style="margin-top:12px;">
+                <a href="/employee/telegram-link" class="attendance-button" style="display:inline-block; text-decoration:none; padding: 12px 18px;">
+                  🚀 Открыть бота и привязать
+                </a>
+              </div>
+              <div style="margin-top:8px;">
+                <a href="/employee/tg-web-confirm" class="attendance-button" style="display:inline-block; text-decoration:none; padding: 10px 16px; background:#28a745;">
+                  ✅ Разрешить отметку через Telegram (15 минут)
+                </a>
+              </div>
+              {% if request.query_params.get('success') == 'phone_saved' %}
+              <div class="alert" style="background:#d4edda;color:#155724;border:1px solid #c3e6cb;margin-top:12px;">
+                ✅ Номер сохранен. Нажмите «Открыть бота и привязать».
+              </div>
+              {% elif request.query_params.get('error') == 'phone_conflict' %}
+              <div class="alert alert-danger" style="margin-top:12px;">❌ Этот номер уже используется другим аккаунтом.</div>
+              {% elif request.query_params.get('error') == 'bad_phone' %}
+              <div class="alert alert-danger" style="margin-top:12px;">❌ Неверный формат номера.</div>
+              {% elif request.query_params.get('error') == 'phone_required' %}
+              <div class="alert alert-danger" style="margin-top:12px;">❌ Сначала сохраните номер телефона.</div>
+              {% elif request.query_params.get('error') == 'bot_username_missing' %}
+              <div class="alert alert-danger" style="margin-top:12px;">❌ Не настроено имя Telegram-бота на сервере.</div>
+              {% elif request.query_params.get('success') == 'tg_web_confirm' %}
+              <div class="alert" style="background:#d4edda;color:#155724;border:1px solid #c3e6cb;margin-top:12px;">
+                ✅ На ближайшие 15 минут разрешена отметка через Telegram с вашего аккаунта.
+              </div>
+              {% endif %}
+            </div>
+
+            <div class="attendance-section">
+              <h3>📅 Мой график работы — следующий месяц</h3>
+
+              <!-- Calendar Header (next month) -->
+              <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 10px; margin-top: 20px;">
+                {% for day_name in russian_days %}
+                  <div style="text-align: center; font-weight: bold; color: #007bff; padding: 10px 5px; background: #f8f9fa; border-radius: 6px;">
+                    {{ day_name }}
+                  </div>
+                {% endfor %}
+              </div>
+
+              <!-- Calendar Grid (next month) -->
+              <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;">
+                {% for week in calendar_data_next %}
+                  {% for day_data in week %}
+                    {% if day_data.is_empty %}
+                      <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; min-height: 80px; padding: 8px;"></div>
+                    {% else %}
+                      <div class="calendar-day">
+                        <div class="calendar-day-number calendar-day-number-normal">
+                          {{ day_data.day }}
+                        </div>
+                        {% if day_data.schedule %}
+                          {% if day_data.schedule.shift_type == 'off' %}
+                            <div style="color: #dc3545; font-weight: bold; font-size: 0.8em;">Выходной</div>
+                          {% elif day_data.schedule.shift_type == 'vacation' %}
+                            <div style="color: #28a745; font-weight: bold; font-size: 0.8em;">Отпуск</div>
+                          {% elif day_data.schedule.shift_type == 'sick' %}
+                            <div style="color: #ffc107; font-weight: bold; font-size: 0.8em;">Больничный</div>
+                          {% elif day_data.schedule.shift_type == 'weekend' %}
+                            <div style="color: #6c757d; font-weight: bold; font-size: 0.8em;">Выходной</div>
+                          {% else %}
+                            {% if day_data.schedule.start_time and day_data.schedule.end_time %}
+                              <div style="color: #007bff; font-weight: bold; font-size: 0.8em;">
+                                {{ day_data.schedule.start_time.strftime('%H:%M') }}<br>{{ day_data.schedule.end_time.strftime('%H:%M') }}
+                              </div>
+                            {% else %}
+                              <div style="color: #666; font-size: 0.8em;">Время не указано</div>
+                            {% endif %}
+                          {% endif %}
+                          {% if day_data.schedule.notes %}
+                            <div style="font-size: 0.7em; color: #666; margin-top: 2px; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ day_data.schedule.notes }}">
+                              {{ day_data.schedule.notes }}
+                            </div>
+                          {% endif %}
+                        {% else %}
+                          <div style="color: #666; font-size: 0.8em;">Нет смены</div>
+                        {% endif %}
+                      </div>
+                    {% endif %}
+                  {% endfor %}
+                {% endfor %}
+              </div>
+
+              {% if not employee_schedule_next %}
+                <div style="text-align: center; color: #666; margin-top: 20px;">
+                  На следующий месяц график еще не составлен
                 </div>
               {% endif %}
             </div>

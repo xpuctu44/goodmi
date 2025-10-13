@@ -318,6 +318,7 @@ def admin_scheduling_table(
             {"value": "work", "label": "Рабочий день"},
             {"value": "off", "label": "Отгул"},
             {"value": "weekend", "label": "Выходной"},
+            {"value": "agreed_off", "label": "Согласованный выходной"},
             {"value": "vacation", "label": "Отпуск"},
             {"value": "sick", "label": "Больничный"}
         ]
@@ -555,11 +556,55 @@ def admin_schedule(
             key = f"{schedule.user_id}_{schedule.work_date}"
             schedule_dict[key] = schedule
 
+        # Собираем фактические отметки (приход/уход) по дням для отображения в графике
+        attendance_map = {}
+        # Массив id сотрудников для выборки
+        employee_ids = [e.id for e in employees]
+        if employee_ids:
+            month_att = db.query(Attendance).filter(
+                Attendance.user_id.in_(employee_ids),
+                Attendance.work_date >= first_day,
+                Attendance.work_date <= last_day,
+            ).all()
+
+            # Группируем по (user_id, work_date)
+            from collections import defaultdict
+            grouped = defaultdict(list)
+            for att in month_att:
+                grouped[(att.user_id, att.work_date)].append(att)
+
+            # Для каждого дня берём минимальный приход и максимальный уход (если есть)
+            for (uid, wdate), recs in grouped.items():
+                # Переводим во временную зону Москвы
+                starts = []
+                ends = []
+                for r in recs:
+                    if r.started_at:
+                        starts.append(_to_moscow_time(r.started_at))
+                    if r.ended_at:
+                        ends.append(_to_moscow_time(r.ended_at))
+
+                if starts:
+                    start_min = min(starts)
+                else:
+                    start_min = None
+                end_max = max(ends) if ends else None
+
+                # Форматируем строки времени HH:MM
+                def _fmt(dt):
+                    return dt.strftime('%H:%M') if dt else None
+
+                attendance_map[f"{uid}_{wdate}"] = {
+                    "start": _fmt(start_min),
+                    "end": _fmt(end_max),
+                }
+
         # Определяем типы смен для выпадающего списка
         shift_types = [
             {"value": "work", "label": "Рабочий день"},
             {"value": "off", "label": "Отгул"},
             {"value": "weekend", "label": "Выходной"},
+            {"value": "agreed_off", "label": "Согласованный выходной"},
             {"value": "vacation", "label": "Отпуск"},
             {"value": "sick", "label": "Больничный"}
         ]
@@ -602,6 +647,7 @@ def admin_schedule(
             "stores": stores,
             "month_dates": month_dates,
             "schedule_dict": schedule_dict,
+            "attendance_map": attendance_map if 'attendance_map' in locals() else {},
             "shift_types": shift_types,
             "months": months,
             "years": years,
