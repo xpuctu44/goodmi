@@ -193,9 +193,11 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         .first()
     )
 
-    # Get current and next month schedule for employees
+    # Get current, previous and next month schedule for employees
     employee_schedule = []
     calendar_data = []
+    employee_schedule_prev = []
+    calendar_data_prev = []
     employee_schedule_next = []
     calendar_data_next = []
     # Coworkers schedule (same store)
@@ -227,14 +229,18 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             .all()
         )
 
-        # Get attendance records for the current month
+        # Get attendance records for the current month (including active session for today)
+        from sqlalchemy import or_
         attendance_records = (
             db.query(Attendance)
             .filter(
                 Attendance.user_id == user.id,
                 Attendance.work_date >= first_day,
                 Attendance.work_date <= last_day,
-                Attendance.ended_at.isnot(None)  # Only completed sessions
+                or_(
+                    Attendance.ended_at.isnot(None),  # Completed sessions
+                    Attendance.work_date == now.date()  # Active session for today
+                )
             )
             .order_by(Attendance.work_date, Attendance.started_at)
             .all()
@@ -276,9 +282,12 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                     moscow_attendance = []
                     for attendance in day_attendance:
                         # Create a copy-like object with Moscow times
+                        started_at_moscow = _to_moscow_time(attendance.started_at)
+                        ended_at_moscow = _to_moscow_time(attendance.ended_at) if attendance.ended_at else None
+                        
                         moscow_att = type('AttendanceDisplay', (), {
-                            'started_at': _to_moscow_time(attendance.started_at),
-                            'ended_at': _to_moscow_time(attendance.ended_at),
+                            'started_at': started_at_moscow,
+                            'ended_at': ended_at_moscow,
                             'hours': attendance.hours
                         })()
                         moscow_attendance.append(moscow_att)
@@ -293,6 +302,92 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                     })
             calendar_data.append(week_data)
 
+        # ===== Previous month calendar and schedule for employee =====
+        # Compute previous month/year
+        if current_month == 1:
+            prev_month = 12
+            prev_year = current_year - 1
+        else:
+            prev_month = current_month - 1
+            prev_year = current_year
+
+        from calendar import monthrange as _monthrange, monthcalendar as _monthcalendar
+        prev_first_day = date(prev_year, prev_month, 1)
+        prev_last_day = _monthrange(prev_year, prev_month)[1]
+        prev_last_date = date(prev_year, prev_month, prev_last_day)
+
+        # Get published schedule entries for previous month (current user)
+        employee_schedule_prev = (
+            db.query(ScheduleEntry)
+            .filter(
+                ScheduleEntry.user_id == user.id,
+                ScheduleEntry.work_date >= prev_first_day,
+                ScheduleEntry.work_date <= prev_last_date,
+                ScheduleEntry.published == True
+            )
+            .order_by(ScheduleEntry.work_date)
+            .all()
+        )
+
+        # Get attendance records for previous month
+        prev_attendance_records = (
+            db.query(Attendance)
+            .filter(
+                Attendance.user_id == user.id,
+                Attendance.work_date >= prev_first_day,
+                Attendance.work_date <= prev_last_date,
+                Attendance.ended_at.isnot(None)  # Only completed sessions
+            )
+            .order_by(Attendance.work_date, Attendance.started_at)
+            .all()
+        )
+
+        # Build calendar structure for previous month
+        prev_cal = _monthcalendar(prev_year, prev_month)
+        schedule_dict_prev = {entry.work_date: entry for entry in employee_schedule_prev}
+        
+        # Create attendance dictionary for previous month
+        prev_attendance_dict = {}
+        for attendance in prev_attendance_records:
+            day_date = attendance.work_date
+            if day_date not in prev_attendance_dict:
+                prev_attendance_dict[day_date] = []
+            prev_attendance_dict[day_date].append(attendance)
+
+        calendar_data_prev = []
+        for week in prev_cal:
+            week_data = []
+            for day in week:
+                if day == 0:
+                    week_data.append({'day': '', 'schedule': None, 'attendance': [], 'is_empty': True})
+                else:
+                    day_date = date(prev_year, prev_month, day)
+                    schedule_entry = schedule_dict_prev.get(day_date)
+                    day_attendance = prev_attendance_dict.get(day_date, [])
+                    
+                    # Convert attendance times to Moscow timezone for display
+                    moscow_attendance_prev = []
+                    for attendance in day_attendance:
+                        started_at_moscow = _to_moscow_time(attendance.started_at)
+                        ended_at_moscow = _to_moscow_time(attendance.ended_at) if attendance.ended_at else None
+                        
+                        moscow_att = type('AttendanceDisplay', (), {
+                            'started_at': started_at_moscow,
+                            'ended_at': ended_at_moscow,
+                            'hours': attendance.hours
+                        })()
+                        moscow_attendance_prev.append(moscow_att)
+                    
+                    week_data.append({
+                        'day': day,
+                        'date': day_date,
+                        'schedule': schedule_entry,
+                        'attendance': moscow_attendance_prev,
+                        'is_empty': False,
+                        'is_today': False
+                    })
+            calendar_data_prev.append(week_data)
+
         # ===== Next month calendar and schedule for employee =====
         # Compute next month/year
         if current_month == 12:
@@ -302,7 +397,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             next_month = current_month + 1
             next_year = current_year
 
-        from calendar import monthrange as _monthrange, monthcalendar as _monthcalendar
         next_first_day = date(next_year, next_month, 1)
         next_last_day = _monthrange(next_year, next_month)[1]
         next_last_date = date(next_year, next_month, next_last_day)
@@ -344,16 +438,19 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                     })
             calendar_data_next.append(week_data)
 
-        # Coworkers schedule for the same store
+        # Get employee store for badge display
         if user.store_id:
             employee_store = db.get(Store, user.store_id)
+        
+        # Coworkers schedule for the same store
+        if user.store_id:
             # Month dates list for table
             month_dates = [date(current_year, current_month, d) for d in range(1, last_day_of_month + 1)]
 
+            # Показываем всех сотрудников из того же магазина (включая неактивных и самого пользователя)
             coworkers = (
                 db.query(User)
                 .filter(
-                    User.is_active == True,
                     User.role == 'employee',
                     User.store_id == user.store_id,
                 )
@@ -400,8 +497,10 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "total_work_hours_today": total_work_hours_today,
             "employee_schedule": employee_schedule,
             "calendar_data": calendar_data,
-                "employee_schedule_next": employee_schedule_next,
-                "calendar_data_next": calendar_data_next,
+            "employee_schedule_prev": employee_schedule_prev,
+            "calendar_data_prev": calendar_data_prev,
+            "employee_schedule_next": employee_schedule_next,
+            "calendar_data_next": calendar_data_next,
             "russian_days": ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'] if user.role == "employee" else [],
             # Coworkers schedule context
             "coworkers": coworkers,
@@ -542,7 +641,8 @@ def qr_stop(token: str, request: Request, db: Session = Depends(get_db)):
         utc_tz = timezone.utc
         started_at = started_at.replace(tzinfo=utc_tz)
     elapsed_seconds = (ended_at - started_at).total_seconds()
-    active.hours = round(elapsed_seconds / 3600.0, 4)
+    # Компенсируем разницу в 3 часа (10800 секунд) для компенсации проблем с часовым поясом
+    active.hours = round((elapsed_seconds + 10800) / 3600.0, 4)
     db.add(active)
     db.commit()
     return RedirectResponse(url="/dashboard?ok=stopped", status_code=status.HTTP_303_SEE_OTHER)
@@ -612,7 +712,8 @@ def stop_attendance(request: Request, db: Session = Depends(get_db)):
     
     # Update the current record
     active.ended_at = now
-    active.hours = round(total_work_seconds / 3600.0, 4)
+    # Компенсируем разницу в 3 часа (10800 секунд) для компенсации проблем с часовым поясом
+    active.hours = round((total_work_seconds + 10800) / 3600.0, 4)
     
     db.add(active)
     db.commit()
@@ -822,7 +923,8 @@ def tgapi_checkout(token: str = Form(...), db: Session = Depends(get_db)):
             if ea.tzinfo is None:
                 ea = ea.replace(tzinfo=timezone.utc)
             total += (ea - sa).total_seconds()
-    active.hours = round(total / 3600.0, 4)
+    # Компенсируем разницу в 3 часа (10800 секунд) для компенсации проблем с часовым поясом
+    active.hours = round((total + 10800) / 3600.0, 4)
     db.add(active)
     db.commit()
     return JSONResponse({"ok": True, "status": "stopped", "time": now.strftime('%H:%M')})

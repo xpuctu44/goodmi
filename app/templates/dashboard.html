@@ -5,86 +5,322 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{ title or "Dashboard" }}</title>
     <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+      
+      * {
+        box-sizing: border-box;
+      }
+      
       body {
-        font-family: Arial, sans-serif;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
         margin: 0;
         padding: 0;
-        background: #ffffff;
+        background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 50%, #93c5fd 100%);
+        min-height: 100vh;
+        line-height: 1.6;
+        position: relative;
+        overflow-x: hidden;
       }
+      
+      /* Зимний фон с запотевшим стеклом */
+      body::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: 
+          radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.3) 0%, transparent 50%),
+          radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.2) 0%, transparent 50%),
+          radial-gradient(circle at 40% 20%, rgba(255, 255, 255, 0.25) 0%, transparent 50%);
+        backdrop-filter: blur(2px);
+        z-index: -1;
+        pointer-events: none;
+      }
+      
+      /* Снежинки */
+      .snowflake {
+        position: fixed;
+        top: -10px;
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 1em;
+        font-family: Arial, sans-serif;
+        text-shadow: 0 0 5px rgba(255, 255, 255, 0.8);
+        user-select: none;
+        z-index: 1000;
+        pointer-events: none;
+        animation: snowfall linear infinite;
+      }
+      
+      @keyframes snowfall {
+        0% {
+          transform: translateY(0) translateX(0) rotate(0deg);
+          opacity: 0;
+        }
+        10% {
+          opacity: 1;
+        }
+        90% {
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(100vh) translateX(50px) rotate(360deg);
+          opacity: 0;
+        }
+      }
+      
+      /* Разные скорости и размеры снежинок */
+      .snowflake:nth-child(1) { left: 10%; animation-duration: 10s; animation-delay: 0s; font-size: 0.8em; }
+      .snowflake:nth-child(2) { left: 20%; animation-duration: 12s; animation-delay: 1s; font-size: 1em; }
+      .snowflake:nth-child(3) { left: 30%; animation-duration: 15s; animation-delay: 2s; font-size: 0.7em; }
+      .snowflake:nth-child(4) { left: 40%; animation-duration: 11s; animation-delay: 0.5s; font-size: 1.2em; }
+      .snowflake:nth-child(5) { left: 50%; animation-duration: 13s; animation-delay: 1.5s; font-size: 0.9em; }
+      .snowflake:nth-child(6) { left: 60%; animation-duration: 14s; animation-delay: 2.5s; font-size: 1.1em; }
+      .snowflake:nth-child(7) { left: 70%; animation-duration: 12s; animation-delay: 0.8s; font-size: 0.8em; }
+      .snowflake:nth-child(8) { left: 80%; animation-duration: 16s; animation-delay: 1.2s; font-size: 1em; }
+      .snowflake:nth-child(9) { left: 90%; animation-duration: 13s; animation-delay: 2s; font-size: 0.9em; }
+      .snowflake:nth-child(10) { left: 15%; animation-duration: 11s; animation-delay: 1.8s; font-size: 1.1em; }
+      .snowflake:nth-child(11) { left: 25%; animation-duration: 14s; animation-delay: 0.3s; font-size: 0.7em; }
+      .snowflake:nth-child(12) { left: 35%; animation-duration: 12s; animation-delay: 1.7s; font-size: 1em; }
+      .snowflake:nth-child(13) { left: 45%; animation-duration: 15s; animation-delay: 2.2s; font-size: 0.8em; }
+      .snowflake:nth-child(14) { left: 55%; animation-duration: 13s; animation-delay: 0.6s; font-size: 1.2em; }
+      .snowflake:nth-child(15) { left: 65%; animation-duration: 11s; animation-delay: 1.4s; font-size: 0.9em; }
+      .snowflake:nth-child(16) { left: 75%; animation-duration: 14s; animation-delay: 2.8s; font-size: 1em; }
+      .snowflake:nth-child(17) { left: 85%; animation-duration: 12s; animation-delay: 0.9s; font-size: 0.8em; }
+      .snowflake:nth-child(18) { left: 95%; animation-duration: 16s; animation-delay: 1.6s; font-size: 1.1em; }
+      .snowflake:nth-child(19) { left: 5%; animation-duration: 13s; animation-delay: 2.4s; font-size: 0.9em; }
+      .snowflake:nth-child(20) { left: 95%; animation-duration: 11s; animation-delay: 0.7s; font-size: 1em; }
       .container {
         max-width: 100%;
         width: 100%;
         margin: 0;
-        background: white;
+        background: transparent;
         padding: 16px 20px;
         border-radius: 0;
         box-shadow: none;
       }
       .dashboard-container {
-        max-width: 800px;
+        max-width: 900px;
         margin: 30px auto;
         padding: 20px;
       }
       .welcome-card {
-        background: #f8f9fa;
-        border-radius: 8px;
-        padding: 30px;
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(15px) saturate(180%);
+        border-radius: 20px;
+        padding: 35px;
         margin-bottom: 30px;
-        border: 1px solid #dee2e6;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+        animation: slideDown 0.5s ease-out;
+        position: relative;
+      }
+      
+      /* Эффект запотевшего стекла */
+      .welcome-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: 
+          radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.4) 0%, transparent 50%),
+          radial-gradient(circle at 70% 70%, rgba(255, 255, 255, 0.3) 0%, transparent 50%);
+        border-radius: 20px;
+        pointer-events: none;
+        z-index: 0;
+      }
+      
+      .welcome-card > * {
+        position: relative;
+        z-index: 1;
       }
       .welcome-title {
-        font-size: 1.8em;
-        margin-bottom: 10px;
-        color: #007bff;
+        font-size: 2em;
+        margin-bottom: 15px;
+        color: #333;
+        font-weight: 700;
       }
       .user-info {
         color: #666;
         margin-bottom: 20px;
+        font-size: 1.05em;
       }
       .attendance-section {
-        background: #f8f9fa;
-        border-radius: 8px;
-        padding: 30px;
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(15px) saturate(180%);
+        border-radius: 20px;
+        padding: 35px;
         margin-bottom: 30px;
-        border: 1px solid #dee2e6;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.6);
         text-align: center;
+        animation: slideUp 0.6s ease-out;
+        position: relative;
+      }
+      
+      /* Эффект запотевшего стекла для секций */
+      .attendance-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: 
+          radial-gradient(circle at 20% 40%, rgba(255, 255, 255, 0.4) 0%, transparent 50%),
+          radial-gradient(circle at 80% 60%, rgba(255, 255, 255, 0.3) 0%, transparent 50%);
+        border-radius: 20px;
+        pointer-events: none;
+        z-index: 0;
+      }
+      
+      .attendance-section > * {
+        position: relative;
+        z-index: 1;
+      }
+      
+      @keyframes slideDown {
+        from {
+          opacity: 0;
+          transform: translateY(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      
+      @keyframes slideUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      
+      @keyframes pulse {
+        0%, 100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
       }
       .attendance-button {
-        background: #007bff;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         border: none;
-        border-radius: 8px;
-        padding: 20px 40px;
-        font-size: 1.3em;
-        font-weight: 600;
+        border-radius: 16px;
+        padding: 22px 50px;
+        font-size: 1.4em;
+        font-weight: 700;
         cursor: pointer;
-        transition: all 0.3s, box-shadow 0.25s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         margin: 10px;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        position: relative;
+        overflow: hidden;
+      }
+      .attendance-button::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.3);
+        transform: translate(-50%, -50%);
+        transition: width 0.6s, height 0.6s;
+      }
+      .attendance-button:hover::before {
+        width: 300px;
+        height: 300px;
       }
       .attendance-button:hover {
-        background: #0056b3;
-        transform: translateY(-2px);
-        box-shadow: 0 0 10px rgba(0,123,255,0.65), 0 0 22px rgba(0,123,255,0.45), 0 0 44px rgba(0,123,255,0.25);
+        transform: translateY(-4px) scale(1.02);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6), 0 0 40px rgba(102, 126, 234, 0.3);
+      }
+      .attendance-button:active {
+        transform: translateY(-2px) scale(0.98);
       }
       .attendance-button.stop {
-        background: #dc3545;
-        color: white;
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
       }
       .attendance-button.stop:hover {
-        background: #c82333;
-        box-shadow: 0 0 10px rgba(220,53,69,0.6), 0 0 22px rgba(220,53,69,0.4), 0 0 44px rgba(220,53,69,0.2);
+        box-shadow: 0 8px 25px rgba(245, 87, 108, 0.6), 0 0 40px rgba(245, 87, 108, 0.3);
       }
       .time-info {
-        color: #666;
-        font-size: 1.1em;
-        margin-top: 15px;
+        color: #555;
+        font-size: 1.15em;
+        margin-top: 20px;
+        font-weight: 500;
+      }
+      .status-badge {
+        display: inline-block;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.9em;
+        margin-top: 10px;
+        animation: fadeIn 0.5s ease-out;
+      }
+      .status-badge.active {
+        background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+        color: #155724;
+        box-shadow: 0 4px 15px rgba(132, 250, 176, 0.3);
+      }
+      .status-badge.inactive {
+        background: linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%);
+        color: #721c24;
+        box-shadow: 0 4px 15px rgba(251, 194, 235, 0.3);
+      }
+      
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: scale(0.9);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
       }
       .admin-panel {
-        background: #f8f9fa;
-        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(15px) saturate(180%);
+        border-radius: 20px;
         padding: 30px;
         margin-bottom: 30px;
-        border: 1px solid #dee2e6;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+        position: relative;
+      }
+      
+      .admin-panel::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: 
+          radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.4) 0%, transparent 60%);
+        border-radius: 20px;
+        pointer-events: none;
+        z-index: 0;
+      }
+      
+      .admin-panel > * {
+        position: relative;
+        z-index: 1;
       }
       .admin-title {
         font-size: 1.5em;
@@ -128,63 +364,301 @@
         margin-top: 30px;
       }
       .logout-button {
-        background: #6c757d;
+        background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
         color: white;
         border: none;
-        border-radius: 8px;
-        padding: 12px 24px;
+        border-radius: 12px;
+        padding: 14px 28px;
         font-size: 1em;
+        font-weight: 600;
         cursor: pointer;
-        transition: background 0.3s;
+        transition: all 0.3s;
+        box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
       }
       .logout-button:hover {
-        background: #5a6268;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(108, 117, 125, 0.4);
       }
       .role-badge {
         display: inline-block;
-        background: #007bff;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
-        padding: 4px 12px;
+        padding: 6px 16px;
         border-radius: 20px;
-        font-size: 0.8em;
-        font-weight: 600;
-        margin-left: 10px;
+        font-size: 0.85em;
+        font-weight: 700;
+        margin-left: 12px;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        animation: fadeIn 0.5s ease-out;
       }
       .role-badge.admin {
-        background: #ffc107;
-        color: #000;
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(245, 87, 108, 0.3);
       }
       .timer-display {
         font-family: 'Courier New', monospace;
         font-weight: bold;
-        color: #007bff;
-        background: rgba(0, 123, 255, 0.1);
-        padding: 5px 10px;
-        border-radius: 5px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        padding: 8px 16px;
+        border-radius: 12px;
         display: inline-block;
-        min-width: 80px;
+        min-width: 100px;
         text-align: center;
+        font-size: 1.3em;
+        background-color: rgba(102, 126, 234, 0.1);
+        border: 2px solid rgba(102, 126, 234, 0.2);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+        animation: pulse 2s ease-in-out infinite;
       }
       .calendar-day {
-        background: white;
-        border: 1px solid #dee2e6;
-        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(5px);
+        border: 1px solid rgba(102, 126, 234, 0.2);
+        border-radius: 12px;
         min-height: 80px;
-        padding: 8px;
+        padding: 6px;
+        width: 100%;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        transition: all 0.3s;
+      }
+      .calendar-day:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+        border-color: rgba(102, 126, 234, 0.4);
       }
       .calendar-day-today {
-        border-color: #007bff;
-        box-shadow: 0 0 8px rgba(0, 123, 255, 0.3);
+        border: 2px solid #667eea;
+        box-shadow: 0 0 20px rgba(102, 126, 234, 0.4);
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        animation: pulse 2s ease-in-out infinite;
+      }
+      
+      /* Стиль для выходных дней */
+      .calendar-day-weekend {
+        background: rgba(76, 175, 80, 0.3) !important;
+        border: 2px solid rgba(76, 175, 80, 0.5) !important;
+        box-shadow: 0 0 15px rgba(76, 175, 80, 0.4), inset 0 0 10px rgba(76, 175, 80, 0.2) !important;
+        position: relative;
+      }
+      
+      .calendar-day-weekend::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(circle at center, rgba(76, 175, 80, 0.2) 0%, transparent 70%);
+        border-radius: 12px;
+        pointer-events: none;
+        animation: glow 2s ease-in-out infinite alternate;
+      }
+      
+      @keyframes glow {
+        from {
+          box-shadow: 0 0 15px rgba(76, 175, 80, 0.4), inset 0 0 10px rgba(76, 175, 80, 0.2);
+        }
+        to {
+          box-shadow: 0 0 25px rgba(76, 175, 80, 0.6), inset 0 0 15px rgba(76, 175, 80, 0.3);
+        }
+      }
+      
+      /* Прогресс-бар для времени работы */
+      .progress-container {
+        margin-top: 15px;
+        padding: 15px;
+        background: rgba(255, 255, 255, 0.5);
+        backdrop-filter: blur(10px);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+      }
+      
+      .progress-bar-wrapper {
+        width: 100%;
+        height: 24px;
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 12px;
+        overflow: hidden;
+        position: relative;
+        margin-top: 10px;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      
+      .progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        transition: width 0.5s ease-out;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+      }
+      
+      .progress-bar::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        right: 0;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        animation: shimmer 2s infinite;
+      }
+      
+      @keyframes shimmer {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+      }
+      
+      .progress-text {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #333;
+      }
+      
+      /* Улучшенные карточки статистики */
+      .stats-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(15px) saturate(180%);
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 15px;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+        transition: all 0.3s;
+        position: relative;
+        overflow: hidden;
+      }
+      
+      .stats-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      }
+      
+      .stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 25px rgba(0, 0, 0, 0.15);
+      }
+      
+      .stats-icon {
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        display: block;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+      }
+      
+      .stats-value {
+        font-size: 2em;
+        font-weight: 700;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin: 5px 0;
+      }
+      
+      .stats-label {
+        color: #666;
+        font-size: 0.9em;
+        font-weight: 500;
+      }
+      
+      /* Градиенты для типов смен */
+      .shift-vacation {
+        background: linear-gradient(135deg, rgba(40, 167, 69, 0.2) 0%, rgba(40, 167, 69, 0.1) 100%) !important;
+        border: 1px solid rgba(40, 167, 69, 0.4) !important;
+      }
+      
+      .shift-sick {
+        background: linear-gradient(135deg, rgba(255, 193, 7, 0.2) 0%, rgba(255, 193, 7, 0.1) 100%) !important;
+        border: 1px solid rgba(255, 193, 7, 0.4) !important;
+      }
+      
+      .shift-work {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.1) 100%) !important;
+        border: 1px solid rgba(102, 126, 234, 0.3) !important;
+      }
+      
+      /* Улучшенные уведомления */
+      .alert {
+        animation: slideInRight 0.4s ease-out;
+        border-radius: 12px;
+        padding: 16px 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      }
+      
+      @keyframes slideInRight {
+        from {
+          opacity: 0;
+          transform: translateX(30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+      
+      /* Иконки для типов смен */
+      .shift-icon {
+        display: inline-block;
+        margin-right: 5px;
+        font-size: 1.1em;
+      }
+      
+      /* Стиль для выходных в таблице коллег */
+      .weekend-cell {
+        background: rgba(76, 175, 80, 0.3) !important;
+        border: 2px solid rgba(76, 175, 80, 0.5) !important;
+        box-shadow: 0 0 10px rgba(76, 175, 80, 0.4) !important;
+        position: relative;
+      }
+      
+      .weekend-cell::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(circle at center, rgba(76, 175, 80, 0.2) 0%, transparent 70%);
+        pointer-events: none;
+        animation: glow 2s ease-in-out infinite alternate;
       }
       .calendar-day-number {
         font-weight: bold;
-        margin-bottom: 4px;
+        margin-bottom: 2px;
+        flex-shrink: 0;
+        font-size: 0.9em;
       }
       .calendar-day-number-today {
         color: #007bff;
       }
       .calendar-day-number-normal {
         color: #666;
+      }
+      .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 2px;
+        width: 100%;
+      }
+      .calendar-grid > div {
+        aspect-ratio: 1;
+        min-width: 0;
       }
       .alert {
         padding: 15px;
@@ -221,7 +695,8 @@
         .admin-panel {
           padding: 14px;
           margin-bottom: 14px;
-          border-radius: 8px;
+          border-radius: 16px;
+          backdrop-filter: blur(12px) saturate(180%);
         }
         .attendance-button {
           width: 100%;
@@ -236,6 +711,12 @@
         .calendar-day-number {
           font-size: 0.95em;
         }
+        .calendar-grid {
+          gap: 1px;
+        }
+        .calendar-grid > div {
+          aspect-ratio: 1;
+        }
         .admin-grid {
           grid-template-columns: 1fr 1fr;
           gap: 10px;
@@ -247,12 +728,44 @@
           display: inline-block;
           margin-top: 6px;
         }
+        /* График коллег: на мобильных показываем карточки */
+        .coworkers-table-desktop {
+          display: none !important;
+        }
+        .coworkers-table-mobile {
+          display: block !important;
+        }
+        /* Улучшаем размеры ячеек в мобильной версии графика коллег */
+        .coworkers-table-mobile .calendar-grid-mobile {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          padding-bottom: 10px;
+        }
+        .coworkers-table-mobile > div {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+        .coworkers-table-mobile > div > div:last-child {
+          min-width: max-content;
+        }
+      }
+      
+      /* Desktop: показываем таблицу */
+      @media (min-width: 769px) {
+        .coworkers-table-desktop {
+          display: block !important;
+        }
+        .coworkers-table-mobile {
+          display: none !important;
+        }
       }
     </style>
   </head>
   <body>
     <div class="container">
-      <h1>🕐 Time Tracker</h1>
+        <h1 style="text-align: center; color: white; font-size: 2.5em; font-weight: 700; margin-bottom: 10px; text-shadow: 0 2px 10px rgba(0,0,0,0.2);">
+          🕐 Time Tracker
+        </h1>
       
       <div class="dashboard-container">
         {% if not user %}
@@ -263,7 +776,15 @@
           <div class="welcome-card">
             <h2 class="welcome-title">
               Добро пожаловать, {{ user.full_name or user.email }}!
-              <span class="role-badge {{ user.role }}">{{ 'Администратор' if user.role == 'admin' else 'Сотрудник' }}</span>
+              <span class="role-badge {{ user.role }}">
+                {% if user.role == 'admin' %}
+                  Администратор
+                {% elif employee_store %}
+                  Воин магазина — {{ employee_store.name }}
+                {% else %}
+                  Сотрудник
+                {% endif %}
+              </span>
             </h2>
             <div class="user-info">
               Email: {{ user.email }}
@@ -275,14 +796,16 @@
 
           <!-- Уведомления об ошибках -->
           {% if request.query_params.get('error') == 'ip_not_allowed' %}
-          <div style="background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 8px; padding: 15px; margin-bottom: 20px; color: #721c24;">
-            <h4 style="margin: 0 0 10px 0; color: #721c24;">❌ Ошибка доступа</h4>
-            <p style="margin: 0; font-size: 1.1em;">
+          <div class="alert" style="background: linear-gradient(135deg, rgba(248, 215, 218, 0.95) 0%, rgba(245, 198, 203, 0.95) 100%); border: 2px solid #f5c6cb; border-radius: 12px; padding: 20px; margin-bottom: 20px; color: #721c24; box-shadow: 0 4px 15px rgba(220, 53, 69, 0.2);">
+            <h4 style="margin: 0 0 12px 0; color: #721c24; font-size: 1.3em; display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 1.5em;">❌</span> Ошибка доступа
+            </h4>
+            <p style="margin: 0; font-size: 1.1em; font-weight: 500;">
               <strong>Вы не находитесь на рабочем месте!</strong><br>
               Для отметки прихода/ухода необходимо подключиться к разрешенной сети.
             </p>
-            <p style="margin: 10px 0 0 0; font-size: 0.9em; color: #721c24;">
-              Обратитесь к администратору для добавления вашей сети в список разрешенных IP адресов.
+            <p style="margin: 12px 0 0 0; font-size: 0.95em; color: #721c24; padding: 10px; background: rgba(255, 255, 255, 0.5); border-radius: 8px;">
+              💡 Обратитесь к администратору для добавления вашей сети в список разрешенных IP адресов.
             </p>
           </div>
           {% endif %}
@@ -301,10 +824,10 @@
                   <div id="work-timer-employee" style="font-size: 1.2em; font-weight: bold; color: #007bff; margin-top: 10px;">
                     ⏱️ Общее время работы сегодня: <span id="timer-display-employee" class="timer-display">00:00:00</span>
                   </div>
-                  <div style="margin-top: 10px; font-size: 0.9em; color: #666;">
-                    💼 Статус: <strong style="color: #28a745;">На работе</strong>
+                  <div style="margin-top: 15px;">
+                    <span class="status-badge active">💼 На работе</span>
                     {% if daily_quote %}
-                    <div style="margin-top: 6px; font-size: 0.9em; color: #495057;">
+                    <div style="margin-top: 12px; font-size: 0.95em; color: #495057; font-style: italic; padding: 10px; background: rgba(102, 126, 234, 0.05); border-radius: 10px; border-left: 3px solid #667eea;">
                       💬 {{ daily_quote }}
                     </div>
                     {% endif %}
@@ -313,23 +836,49 @@
               {% else %}
                 <div class="time-info">
                   📅 Готов к началу работы
-                  <br>💼 Статус: <strong style="color: #6c757d;">Не на работе</strong>
+                  <br>
+                  <span class="status-badge inactive">💼 Не на работе</span>
                   {% if daily_quote %}
-                  <div style="margin-top: 6px; font-size: 0.9em; color: #495057;">
+                  <div style="margin-top: 12px; font-size: 0.95em; color: #495057; font-style: italic; padding: 10px; background: rgba(102, 126, 234, 0.05); border-radius: 10px; border-left: 3px solid #667eea;">
                     💬 {{ daily_quote }}
                   </div>
                   {% endif %}
                 </div>
               {% endif %}
               
-              <!-- Общее время работы за день -->
+              <!-- Общее время работы за день с прогресс-баром -->
               {% if total_work_hours_today > 0 %}
-                <div class="time-info" style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #007bff;">
-                  <div style="font-size: 1.1em; font-weight: bold; color: #007bff;">
-                    📊 Общее время работы сегодня: {{ "%.1f"|format(total_work_hours_today) }} ч
+                <div class="stats-card" style="margin-top: 20px;">
+                  <div style="text-align: center;">
+                    <span class="stats-icon">📊</span>
+                    <div class="stats-value">{{ "%.1f"|format(total_work_hours_today) }} ч</div>
+                    <div class="stats-label">Общее время работы сегодня</div>
+                    
+                    <!-- Прогресс-бар (предполагаем стандартный рабочий день 8 часов) -->
+                    {% set progress_percent = (total_work_hours_today / 8.0 * 100) | round(1) %}
+                    {% if progress_percent > 100 %}
+                      {% set progress_percent = 100 %}
+                    {% endif %}
+                    <div class="progress-container">
+                      <div class="progress-text">
+                        <span>Прогресс дня</span>
+                        <span style="color: #667eea; font-weight: 700;">{{ progress_percent }}%</span>
                   </div>
-                  <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
-                    Включает все сессии работы за день
+                      <div class="progress-bar-wrapper">
+                        <div class="progress-bar" style="width: {{ progress_percent }}%; {% if progress_percent >= 100 %}background: linear-gradient(90deg, #28a745 0%, #20c997 100%);{% endif %}"></div>
+                      </div>
+                      <div style="font-size: 0.85em; color: #666; margin-top: 8px; text-align: center;">
+                        {% if progress_percent >= 100 %}
+                          ✅ Выполнена дневная норма!
+                        {% elif progress_percent >= 75 %}
+                          🎯 Отличный прогресс
+                        {% elif progress_percent >= 50 %}
+                          💪 Хорошая работа
+                        {% else %}
+                          ⏳ Продолжайте в том же духе
+                        {% endif %}
+                      </div>
+                    </div>
                   </div>
                 </div>
               {% endif %}
@@ -337,66 +886,159 @@
 
             {% if user.role == 'employee' %}
             <div class="attendance-section">
-              <h3>📅 Мой график работы — текущий месяц</h3>
+              <h3>📅 Мой график работы</h3>
+              
+              <!-- Кнопки переключения месяцев -->
+              <div style="display: flex; gap: 10px; justify-content: center; margin: 20px 0; flex-wrap: wrap;">
+                <button onclick="showCalendar('prev')" id="btn-prev" class="month-switch-btn" style="padding: 10px 20px; border: 2px solid #667eea; background: #f8f9fa; color: #667eea; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s;">
+                  ← Прошлый месяц
+                </button>
+                <button onclick="showCalendar('current')" id="btn-current" class="month-switch-btn active" style="padding: 10px 20px; border: 2px solid #667eea; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);">
+                  Текущий месяц
+                </button>
+                <button onclick="showCalendar('next')" id="btn-next" class="month-switch-btn" style="padding: 10px 20px; border: 2px solid #667eea; background: #f8f9fa; color: #667eea; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s;">
+                  Следующий месяц →
+                </button>
+              </div>
+
+              <!-- Календарь прошлого месяца -->
+              <div id="calendar-prev" class="calendar-container" style="display: none;">
+                <h4 style="text-align: center; color: #666; margin-bottom: 15px;">Прошлый месяц</h4>
+                <!-- Calendar Header (previous month) -->
+              <div class="calendar-grid" style="margin-bottom: 10px; margin-top: 20px;">
+                {% for day_name in russian_days %}
+                  <div style="text-align: center; font-weight: bold; color: #007bff; padding: 10px 5px; background: #f8f9fa; border-radius: 6px; aspect-ratio: 1; display: flex; align-items: center; justify-content: center;">
+                    {{ day_name }}
+                  </div>
+                {% endfor %}
+              </div>
+
+              <!-- Calendar Grid (previous month) -->
+              <div class="calendar-grid">
+                {% for week in calendar_data_prev %}
+                  {% for day_data in week %}
+                    {% if day_data.is_empty %}
+                      <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; padding: 8px; aspect-ratio: 1; box-sizing: border-box;"></div>
+                    {% else %}
+                      {% set is_weekend_prev = day_data.schedule and (day_data.schedule.shift_type == 'off' or day_data.schedule.shift_type == 'weekend') %}
+                      <div class="calendar-day {{ 'calendar-day-weekend' if is_weekend_prev else 'calendar-day-normal' }}">
+                        <div class="calendar-day-number calendar-day-number-normal">
+                          {{ day_data.day }}
+                        </div>
+                        <div style="flex: 1; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-start; position: relative; z-index: 1;">
+                          {% if day_data.attendance %}
+                            <!-- Показываем фактическое время прихода и ухода - ПРИОРИТЕТ -->
+                            {% for attendance in day_data.attendance %}
+                              {% if attendance.ended_at %}
+                                <!-- Завершенная смена -->
+                                <div style="color: #28a745; font-weight: 700; font-size: 0.6em; margin-bottom: 1px; line-height: 1.0; word-break: break-word; text-shadow: 0 1px 1px rgba(40, 167, 69, 0.2);">
+                                  {{ attendance.started_at.strftime('%H:%M') }}<br>{{ attendance.ended_at.strftime('%H:%M') }}
+                                </div>
+                                {% if attendance.hours %}
+                                  <div style="color: #007bff; font-size: 0.5em; line-height: 1.0; margin-bottom: 1px; font-weight: 600;">
+                                    {{ "%.1f"|format(attendance.hours) }}ч
+                                  </div>
+                                {% endif %}
+                              {% endif %}
+                            {% endfor %}
+                          {% elif day_data.schedule %}
+                            {% if day_data.schedule.shift_type == 'off' %}
+                              <div style="color: #2e7d32; font-weight: bold; font-size: 0.8em; line-height: 1.2; text-shadow: 0 0 5px rgba(76, 175, 80, 0.5);"><span class="shift-icon">🏖️</span>Выходной</div>
+                            {% elif day_data.schedule.shift_type == 'vacation' %}
+                              <div style="color: #28a745; font-weight: bold; font-size: 0.8em; line-height: 1.2;"><span class="shift-icon">✈️</span>Отпуск</div>
+                            {% elif day_data.schedule.shift_type == 'sick' %}
+                              <div style="color: #ffc107; font-weight: bold; font-size: 0.8em; line-height: 1.2;"><span class="shift-icon">🏥</span>Больничный</div>
+                            {% elif day_data.schedule.shift_type == 'weekend' %}
+                              <div style="color: #2e7d32; font-weight: bold; font-size: 0.8em; line-height: 1.2; text-shadow: 0 0 5px rgba(76, 175, 80, 0.5);"><span class="shift-icon">🏖️</span>Выходной</div>
+                            {% else %}
+                              <!-- Обычная рабочая смена без фактического времени - не показываем запланированное время -->
+                              <div style="color: #666; font-size: 0.65em; line-height: 1.0;">Смена</div>
+                            {% endif %}
+                            {% if day_data.schedule.notes %}
+                              <div style="font-size: 0.55em; color: #666; margin-top: 1px; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.0;" title="{{ day_data.schedule.notes }}">
+                                {{ day_data.schedule.notes }}
+                              </div>
+                            {% endif %}
+                          {% else %}
+                            <div style="color: #666; font-size: 0.65em; line-height: 1.0;">Нет смены</div>
+                          {% endif %}
+                        </div>
+                      </div>
+                    {% endif %}
+                  {% endfor %}
+                {% endfor %}
+              </div>
+
+              </div>
+
+              <!-- Календарь текущего месяца -->
+              <div id="calendar-current" class="calendar-container">
+                <h4 style="text-align: center; color: #666; margin-bottom: 15px;">Текущий месяц</h4>
 
               <!-- Calendar Header -->
-              <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 10px; margin-top: 20px;">
+              <div class="calendar-grid" style="margin-bottom: 10px; margin-top: 20px;">
                 {% for day_name in russian_days %}
-                  <div style="text-align: center; font-weight: bold; color: #007bff; padding: 10px 5px; background: #f8f9fa; border-radius: 6px;">
+                  <div style="text-align: center; font-weight: bold; color: #007bff; padding: 10px 5px; background: #f8f9fa; border-radius: 6px; aspect-ratio: 1; display: flex; align-items: center; justify-content: center;">
                     {{ day_name }}
                   </div>
                 {% endfor %}
               </div>
 
               <!-- Calendar Grid -->
-              <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;">
+              <div class="calendar-grid">
                 {% for week in calendar_data %}
                   {% for day_data in week %}
                     {% if day_data.is_empty %}
-                      <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; min-height: 80px; padding: 8px;"></div>
+                      <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; padding: 8px; aspect-ratio: 1; box-sizing: border-box;"></div>
                     {% else %}
-                      <div class="calendar-day {{ 'calendar-day-today' if day_data.is_today else 'calendar-day-normal' }}">
+                      {% set is_weekend_current = day_data.schedule and (day_data.schedule.shift_type == 'off' or day_data.schedule.shift_type == 'weekend') %}
+                      <div class="calendar-day {{ 'calendar-day-today' if day_data.is_today else 'calendar-day-normal' }} {{ 'calendar-day-weekend' if is_weekend_current else '' }}">
                         <div class="calendar-day-number {{ 'calendar-day-number-today' if day_data.is_today else 'calendar-day-number-normal' }}">
                           {{ day_data.day }}
                         </div>
+                        <div style="flex: 1; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-start; position: relative; z-index: 1;">
                         {% if day_data.attendance %}
-                          <!-- Показываем время прихода и ухода -->
+                            <!-- Показываем фактическое время прихода и ухода - ПРИОРИТЕТ -->
                           {% for attendance in day_data.attendance %}
-                            <div style="color: #28a745; font-weight: bold; font-size: 0.7em; margin-bottom: 2px;">
-                              📅 {{ attendance.started_at.strftime('%H:%M') }} - {{ attendance.ended_at.strftime('%H:%M') }}
+                              {% if attendance.ended_at %}
+                                <!-- Завершенная смена -->
+                                <div style="color: #28a745; font-weight: 700; font-size: 0.6em; margin-bottom: 1px; line-height: 1.0; word-break: break-word; text-shadow: 0 1px 1px rgba(40, 167, 69, 0.2);">
+                                  {{ attendance.started_at.strftime('%H:%M') }}<br>{{ attendance.ended_at.strftime('%H:%M') }}
                             </div>
                             {% if attendance.hours %}
-                              <div style="color: #007bff; font-size: 0.6em;">
-                                ⏱️ {{ "%.1f"|format(attendance.hours) }}ч
+                                  <div style="color: #007bff; font-size: 0.5em; line-height: 1.0; margin-bottom: 1px; font-weight: 600;">
+                                    {{ "%.1f"|format(attendance.hours) }}ч
+                                  </div>
+                                {% endif %}
+                              {% else %}
+                                <!-- Активная смена (только приход) -->
+                                <div style="color: #ff9800; font-weight: 700; font-size: 0.6em; margin-bottom: 1px; line-height: 1.0; word-break: break-word;">
+                                  {{ attendance.started_at.strftime('%H:%M') }}<br>...
                               </div>
                             {% endif %}
                           {% endfor %}
                         {% elif day_data.schedule %}
                           {% if day_data.schedule.shift_type == 'off' %}
-                            <div style="color: #dc3545; font-weight: bold; font-size: 0.8em;">Выходной</div>
+                              <div style="color: #2e7d32; font-weight: bold; font-size: 0.8em; line-height: 1.2; text-shadow: 0 0 5px rgba(76, 175, 80, 0.5);"><span class="shift-icon">🏖️</span>Выходной</div>
                           {% elif day_data.schedule.shift_type == 'vacation' %}
-                            <div style="color: #28a745; font-weight: bold; font-size: 0.8em;">Отпуск</div>
+                              <div style="color: #28a745; font-weight: bold; font-size: 0.8em; line-height: 1.2;"><span class="shift-icon">✈️</span>Отпуск</div>
                           {% elif day_data.schedule.shift_type == 'sick' %}
-                            <div style="color: #ffc107; font-weight: bold; font-size: 0.8em;">Больничный</div>
+                              <div style="color: #ffc107; font-weight: bold; font-size: 0.8em; line-height: 1.2;"><span class="shift-icon">🏥</span>Больничный</div>
                           {% elif day_data.schedule.shift_type == 'weekend' %}
-                            <div style="color: #6c757d; font-weight: bold; font-size: 0.8em;">Выходной</div>
+                              <div style="color: #2e7d32; font-weight: bold; font-size: 0.8em; line-height: 1.2; text-shadow: 0 0 5px rgba(76, 175, 80, 0.5);"><span class="shift-icon">🏖️</span>Выходной</div>
                           {% else %}
-                            {% if day_data.schedule.start_time and day_data.schedule.end_time %}
-                              <div style="color: #007bff; font-weight: bold; font-size: 0.8em;">
-                                {{ day_data.schedule.start_time.strftime('%H:%M') }}<br>{{ day_data.schedule.end_time.strftime('%H:%M') }}
-                              </div>
-                            {% else %}
-                              <div style="color: #666; font-size: 0.8em;">Время не указано</div>
-                            {% endif %}
+                              <!-- Обычная рабочая смена без фактического времени - не показываем запланированное время -->
+                              <div style="color: #666; font-size: 0.65em; line-height: 1.0;">Смена</div>
                           {% endif %}
                           {% if day_data.schedule.notes %}
-                            <div style="font-size: 0.7em; color: #666; margin-top: 2px; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ day_data.schedule.notes }}">
+                              <div style="font-size: 0.55em; color: #666; margin-top: 1px; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.0;" title="{{ day_data.schedule.notes }}">
                               {{ day_data.schedule.notes }}
                             </div>
                           {% endif %}
                         {% else %}
-                          <div style="color: #666; font-size: 0.8em;">Нет смены</div>
+                            <div style="color: #666; font-size: 0.65em; line-height: 1.0;">Нет смены</div>
                         {% endif %}
+                        </div>
                       </div>
                     {% endif %}
                   {% endfor %}
@@ -453,78 +1095,82 @@
               {% endif %}
             </div>
 
-            <div class="attendance-section">
-              <h3>📅 Мой график работы — следующий месяц</h3>
-
-              <!-- Calendar Header (next month) -->
-              <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 10px; margin-top: 20px;">
+              <!-- Календарь следующего месяца -->
+              <div id="calendar-next" class="calendar-container" style="display: none;">
+                <h4 style="text-align: center; color: #666; margin-bottom: 15px;">Следующий месяц</h4>
+                <!-- Calendar Header (next month) -->
+              <div class="calendar-grid" style="margin-bottom: 10px; margin-top: 20px;">
                 {% for day_name in russian_days %}
-                  <div style="text-align: center; font-weight: bold; color: #007bff; padding: 10px 5px; background: #f8f9fa; border-radius: 6px;">
+                  <div style="text-align: center; font-weight: bold; color: #007bff; padding: 10px 5px; background: #f8f9fa; border-radius: 6px; aspect-ratio: 1; display: flex; align-items: center; justify-content: center;">
                     {{ day_name }}
                   </div>
                 {% endfor %}
               </div>
 
               <!-- Calendar Grid (next month) -->
-              <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;">
+              <div class="calendar-grid">
                 {% for week in calendar_data_next %}
                   {% for day_data in week %}
                     {% if day_data.is_empty %}
-                      <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; min-height: 80px; padding: 8px;"></div>
+                      <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; padding: 8px; aspect-ratio: 1; box-sizing: border-box;"></div>
                     {% else %}
-                      <div class="calendar-day">
+                      {% set is_weekend_next = day_data.schedule and (day_data.schedule.shift_type == 'off' or day_data.schedule.shift_type == 'weekend') %}
+                      <div class="calendar-day {{ 'calendar-day-weekend' if is_weekend_next else '' }}">
                         <div class="calendar-day-number calendar-day-number-normal">
                           {{ day_data.day }}
                         </div>
+                        <div style="flex: 1; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-start; position: relative; z-index: 1;">
                         {% if day_data.schedule %}
                           {% if day_data.schedule.shift_type == 'off' %}
-                            <div style="color: #dc3545; font-weight: bold; font-size: 0.8em;">Выходной</div>
+                              <div style="color: #2e7d32; font-weight: bold; font-size: 0.8em; line-height: 1.2; text-shadow: 0 0 5px rgba(76, 175, 80, 0.5);"><span class="shift-icon">🏖️</span>Выходной</div>
                           {% elif day_data.schedule.shift_type == 'vacation' %}
-                            <div style="color: #28a745; font-weight: bold; font-size: 0.8em;">Отпуск</div>
+                              <div style="color: #28a745; font-weight: bold; font-size: 0.8em; line-height: 1.2;"><span class="shift-icon">✈️</span>Отпуск</div>
                           {% elif day_data.schedule.shift_type == 'sick' %}
-                            <div style="color: #ffc107; font-weight: bold; font-size: 0.8em;">Больничный</div>
+                              <div style="color: #ffc107; font-weight: bold; font-size: 0.8em; line-height: 1.2;"><span class="shift-icon">🏥</span>Больничный</div>
                           {% elif day_data.schedule.shift_type == 'weekend' %}
-                            <div style="color: #6c757d; font-weight: bold; font-size: 0.8em;">Выходной</div>
+                              <div style="color: #2e7d32; font-weight: bold; font-size: 0.8em; line-height: 1.2; text-shadow: 0 0 5px rgba(76, 175, 80, 0.5);"><span class="shift-icon">🏖️</span>Выходной</div>
                           {% else %}
                             {% if day_data.schedule.start_time and day_data.schedule.end_time %}
-                              <div style="color: #007bff; font-weight: bold; font-size: 0.8em;">
-                                {{ day_data.schedule.start_time.strftime('%H:%M') }}<br>{{ day_data.schedule.end_time.strftime('%H:%M') }}
+                                <div style="color: #007bff; font-weight: bold; font-size: 0.65em; line-height: 1.1;">
+                                  <span class="shift-icon">💼</span>{{ day_data.schedule.start_time.strftime('%H:%M') }}<br>{{ day_data.schedule.end_time.strftime('%H:%M') }}
                               </div>
                             {% else %}
-                              <div style="color: #666; font-size: 0.8em;">Время не указано</div>
+                                <div style="color: #666; font-size: 0.7em; line-height: 1.1;">Время не указано</div>
                             {% endif %}
                           {% endif %}
                           {% if day_data.schedule.notes %}
-                            <div style="font-size: 0.7em; color: #666; margin-top: 2px; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ day_data.schedule.notes }}">
+                              <div style="font-size: 0.6em; color: #666; margin-top: 2px; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.1;" title="{{ day_data.schedule.notes }}">
                               {{ day_data.schedule.notes }}
                             </div>
                           {% endif %}
                         {% else %}
-                          <div style="color: #666; font-size: 0.8em;">Нет смены</div>
+                            <div style="color: #666; font-size: 0.7em; line-height: 1.1;">Нет смены</div>
                         {% endif %}
+                        </div>
                       </div>
                     {% endif %}
                   {% endfor %}
                 {% endfor %}
               </div>
-
-              {% if not employee_schedule_next %}
-                <div style="text-align: center; color: #666; margin-top: 20px;">
-                  На следующий месяц график еще не составлен
-                </div>
-              {% endif %}
+              </div>
             </div>
             {% endif %}
 
             {% if user.role == 'employee' and employee_store and coworkers %}
             <div class="attendance-section" style="margin-top: 20px; text-align: left;">
               <h3>👥 График коллег — {{ employee_store.name }}</h3>
+              <div class="coworkers-table-mobile" style="display: none; margin-bottom: 8px;">
+                <div style="font-size: 0.85em; color: #666; padding: 8px; background: #e7f3ff; border-radius: 6px; border-left: 3px solid #007bff;">
+                  💡 Прокрутите календарь влево-вправо, чтобы увидеть все дни месяца
+                </div>
+              </div>
 
-              <div style="overflow-x: auto; margin-top: 10px;">
-                <table style="width: 100%; border-collapse: collapse; font-size: 0.85em;">
+              <!-- Desktop version: table -->
+              <div class="coworkers-table-desktop" style="overflow-x: auto; margin-top: 10px; position: relative;">
+                <table style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.85em;">
                   <thead>
                     <tr>
-                      <th style="position: sticky; left: 0; background: #f8f9fa; z-index: 2; padding: 8px; border: 1px solid #dee2e6; text-align: left; min-width: 180px;">Сотрудник</th>
+                      <th style="position: sticky; left: 0; background: #f8f9fa; z-index: 10; padding: 8px; border: 1px solid #dee2e6; text-align: left; min-width: 180px; box-shadow: 2px 0 5px rgba(0,0,0,0.1);">Сотрудник</th>
                       {% for d in month_dates %}
                       <th style="padding: 6px; border: 1px solid #dee2e6; text-align: center; min-width: 46px; background: #f8f9fa;">{{ d.strftime('%d') }}</th>
                       {% endfor %}
@@ -533,21 +1179,22 @@
                   <tbody>
                     {% for emp in coworkers %}
                     <tr>
-                      <td style="position: sticky; left: 0; background: #fff; z-index: 1; padding: 6px 8px; border: 1px solid #dee2e6;">
+                      <td style="position: sticky; left: 0; background: #fff; z-index: 5; padding: 6px 8px; border: 1px solid #dee2e6; box-shadow: 2px 0 5px rgba(0,0,0,0.1); white-space: nowrap;">
                         {{ emp.full_name or emp.email }}
                       </td>
                       {% for d in month_dates %}
                       {% set entry = coworker_schedule_map.get((emp.id, d)) %}
-                      <td style="padding: 4px; border: 1px solid #dee2e6; text-align: center; font-size: 0.8em;">
+                      {% set is_weekend_coworker = entry and (entry.shift_type == 'off' or entry.shift_type == 'weekend') %}
+                      <td class="{{ 'weekend-cell' if is_weekend_coworker else '' }}" style="padding: 4px; border: 1px solid #dee2e6; text-align: center; font-size: 0.8em; position: relative;">
                         {% if entry %}
                           {% if entry.shift_type == 'off' %}
-                            <span style="color: #dc3545; font-weight: 600;">О</span>
+                            <span style="color: #2e7d32; font-weight: 700; text-shadow: 0 0 5px rgba(76, 175, 80, 0.5); position: relative; z-index: 1;">О</span>
                           {% elif entry.shift_type == 'vacation' %}
                             <span style="color: #28a745; font-weight: 600;">Отп</span>
                           {% elif entry.shift_type == 'sick' %}
                             <span style="color: #ffc107; font-weight: 600;">Б</span>
                           {% elif entry.shift_type == 'weekend' %}
-                            <span style="color: #6c757d; font-weight: 600;">В</span>
+                            <span style="color: #2e7d32; font-weight: 700; text-shadow: 0 0 5px rgba(76, 175, 80, 0.5); position: relative; z-index: 1;">В</span>
                           {% else %}
                             {% if entry.start_time and entry.end_time %}
                               <span style="color: #007bff; font-weight: 600;">{{ entry.start_time.strftime('%H:%M') }}</span>
@@ -565,6 +1212,67 @@
                   </tbody>
                 </table>
               </div>
+
+              <!-- Mobile version: cards -->
+              <div class="coworkers-table-mobile" style="display: none;">
+                {% for emp in coworkers %}
+                <div style="background: white; border: 1px solid #dee2e6; border-radius: 10px; padding: 14px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                  <div style="font-weight: bold; font-size: 1.1em; margin-bottom: 12px; color: #007bff; padding-bottom: 10px; border-bottom: 2px solid #007bff;">
+                    {{ emp.full_name or emp.email }}
+                  </div>
+                  
+                  <!-- Контейнер с горизонтальной прокруткой -->
+                  <div style="overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 10px; margin: 0 -14px; padding-left: 14px; padding-right: 14px;">
+                    <!-- Заголовки дней недели -->
+                    <div style="display: grid; grid-template-columns: repeat({{ month_dates|length }}, minmax(50px, 1fr)); gap: 3px; margin-bottom: 6px; min-width: max-content;">
+                      {% for d in month_dates %}
+                      {% set day_of_week = d.weekday() %}
+                      <div style="text-align: center; font-size: 0.7em; color: #666; font-weight: 600; padding: 4px 2px; min-width: 50px;">
+                        {{ russian_days[day_of_week] }}
+                      </div>
+                      {% endfor %}
+                    </div>
+                    
+                    <!-- Календарь сотрудника -->
+                    <div style="display: grid; grid-template-columns: repeat({{ month_dates|length }}, minmax(50px, 1fr)); gap: 3px; min-width: max-content;">
+                      {% for d in month_dates %}
+                      {% set entry = coworker_schedule_map.get((emp.id, d)) %}
+                      {% set day_of_week = d.weekday() %}
+                      {% set is_weekend_mobile = entry and (entry.shift_type == 'off' or entry.shift_type == 'weekend') %}
+                      <div class="{{ 'calendar-day-weekend' if is_weekend_mobile else '' }}" style="text-align: center; padding: 10px 4px; border: 1px solid #e9ecef; border-radius: 6px; background: {% if is_weekend_mobile %}rgba(76, 175, 80, 0.3){% elif day_of_week >= 5 %}#fff5f5{% else %}#f8f9fa{% endif %}; min-height: 70px; min-width: 50px; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; box-sizing: border-box; position: relative;">
+                        <div style="font-size: 0.8em; color: #333; margin-bottom: 6px; font-weight: 700; position: relative; z-index: 1;">{{ d.strftime('%d') }}</div>
+                        {% if entry %}
+                          {% if entry.shift_type == 'off' %}
+                            <div style="color: #2e7d32; font-weight: 700; font-size: 0.9em; line-height: 1.2; text-shadow: 0 0 5px rgba(76, 175, 80, 0.5); position: relative; z-index: 1;">О</div>
+                          {% elif entry.shift_type == 'vacation' %}
+                            <div style="color: #28a745; font-weight: 700; font-size: 0.9em; line-height: 1.2;">Отп</div>
+                          {% elif entry.shift_type == 'sick' %}
+                            <div style="color: #ffc107; font-weight: 700; font-size: 0.9em; line-height: 1.2;">Б</div>
+                          {% elif entry.shift_type == 'weekend' %}
+                            <div style="color: #2e7d32; font-weight: 700; font-size: 0.9em; line-height: 1.2; text-shadow: 0 0 5px rgba(76, 175, 80, 0.5); position: relative; z-index: 1;">В</div>
+                          {% else %}
+                            {% if entry.start_time and entry.end_time %}
+                              <div style="color: #007bff; font-weight: 700; font-size: 0.8em; line-height: 1.2;">
+                                {{ entry.start_time.strftime('%H:%M') }}
+                              </div>
+                              <div style="color: #007bff; font-weight: 600; font-size: 0.75em; line-height: 1.2; margin-top: 2px;">
+                                {{ entry.end_time.strftime('%H:%M') }}
+                              </div>
+                            {% else %}
+                              <div style="color: #6c757d; font-size: 0.75em;">—</div>
+                            {% endif %}
+                          {% endif %}
+                        {% else %}
+                          <div style="color: #adb5bd; font-size: 0.75em;">—</div>
+                        {% endif %}
+                      </div>
+                      {% endfor %}
+                    </div>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+
               <div style="margin-top: 8px; font-size: 0.85em; color: #666;">
                 Обозначения: Р — рабочая смена, О — отгул, В — выходной, Отп — отпуск, Б — больничный
               </div>
@@ -585,14 +1293,15 @@
                   <div id="work-timer" style="font-size: 1.2em; font-weight: bold; color: #007bff; margin-top: 10px;">
                     ⏱️ Текущее время работы: <span id="timer-display" class="timer-display">00:00:00</span>
                   </div>
-                  <div style="margin-top: 10px; font-size: 0.9em; color: #666;">
-                    💼 Статус: <strong style="color: #28a745;">На работе</strong>
+                  <div style="margin-top: 15px;">
+                    <span class="status-badge active">💼 На работе</span>
                   </div>
                 </div>
               {% else %}
                 <div class="time-info">
                   📅 Готов к началу работы
-                  <br>💼 Статус: <strong style="color: #6c757d;">Не на работе</strong>
+                  <br>
+                  <span class="status-badge inactive">💼 Не на работе</span>
                 </div>
               {% endif %}
             </div>
@@ -693,7 +1402,7 @@
         const workTimerEmployee = document.getElementById('work-timer-employee');
 
         if (timerDisplayEmployee && workTimerEmployee) {
-          // Get total work hours from server
+          // Get total work hours from server (already includes active session)
           const totalWorkHoursToday = parseFloat('{{ total_work_hours_today|default(0) }}') || 0;
           const startTimeStr = '{{ start_time_moscow.isoformat() if start_time_moscow else "" }}';
 
@@ -710,14 +1419,18 @@
               currentSessionSeconds = 0;
             }
 
-            // Convert total work hours to seconds and add current session
-            const totalWorkSecondsFromDB = Math.floor(totalWorkHoursToday * 3600);
-            let totalElapsedSeconds = totalWorkSecondsFromDB + currentSessionSeconds;
+            // totalWorkHoursToday already includes the active session, so we need to subtract
+            // the old session time and add the current one, OR just recalculate from startTime
+            // Actually, simpler: totalWorkHoursToday includes time up to when page was loaded,
+            // so we need to add the time since page load
+            const totalWorkSecondsAtPageLoad = Math.floor(totalWorkHoursToday * 3600);
+            const pageLoadTime = now.getTime();
 
             // Update timer every second
             setInterval(() => {
-              currentSessionSeconds++;
-              totalElapsedSeconds++;
+              const currentNow = new Date();
+              const secondsSincePageLoad = Math.floor((currentNow.getTime() - pageLoadTime) / 1000);
+              const totalElapsedSeconds = totalWorkSecondsAtPageLoad + secondsSincePageLoad;
 
               const hours = Math.floor(totalElapsedSeconds / 3600);
               const minutes = Math.floor((totalElapsedSeconds % 3600) / 60);
@@ -727,7 +1440,16 @@
               timerDisplayEmployee.textContent = timeString;
             }, 1000);
 
-            // Initial display
+            // Initial display - use the value from server (already correct)
+            const totalElapsedSeconds = Math.floor(totalWorkHoursToday * 3600);
+            const hours = Math.floor(totalElapsedSeconds / 3600);
+            const minutes = Math.floor((totalElapsedSeconds % 3600) / 60);
+            const seconds = totalElapsedSeconds % 60;
+            const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            timerDisplayEmployee.textContent = timeString;
+          } else {
+            // No active session, just show total from completed sessions
+            const totalElapsedSeconds = Math.floor(totalWorkHoursToday * 3600);
             const hours = Math.floor(totalElapsedSeconds / 3600);
             const minutes = Math.floor((totalElapsedSeconds % 3600) / 60);
             const seconds = totalElapsedSeconds % 60;
@@ -781,6 +1503,79 @@
           console.log('Employee timer active:', timerDisplayEmployee.textContent);
         }
       }, 60000);
+        // Функция переключения календарей
+        function showCalendar(month) {
+          // Скрыть все календари
+          document.getElementById('calendar-prev').style.display = 'none';
+          document.getElementById('calendar-current').style.display = 'none';
+          document.getElementById('calendar-next').style.display = 'none';
+          
+          // Убрать активный класс со всех кнопок
+          document.getElementById('btn-prev').classList.remove('active');
+          document.getElementById('btn-current').classList.remove('active');
+          document.getElementById('btn-next').classList.remove('active');
+          
+          // Показать выбранный календарь
+          if (month === 'prev') {
+            document.getElementById('calendar-prev').style.display = 'block';
+            document.getElementById('btn-prev').classList.add('active');
+            document.getElementById('btn-prev').style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            document.getElementById('btn-prev').style.color = 'white';
+            document.getElementById('btn-prev').style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.3)';
+            document.getElementById('btn-current').style.background = '#f8f9fa';
+            document.getElementById('btn-current').style.color = '#667eea';
+            document.getElementById('btn-current').style.boxShadow = 'none';
+            document.getElementById('btn-next').style.background = '#f8f9fa';
+            document.getElementById('btn-next').style.color = '#667eea';
+            document.getElementById('btn-next').style.boxShadow = 'none';
+          } else if (month === 'next') {
+            document.getElementById('calendar-next').style.display = 'block';
+            document.getElementById('btn-next').classList.add('active');
+            document.getElementById('btn-next').style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            document.getElementById('btn-next').style.color = 'white';
+            document.getElementById('btn-next').style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.3)';
+            document.getElementById('btn-prev').style.background = '#f8f9fa';
+            document.getElementById('btn-prev').style.color = '#667eea';
+            document.getElementById('btn-prev').style.boxShadow = 'none';
+            document.getElementById('btn-current').style.background = '#f8f9fa';
+            document.getElementById('btn-current').style.color = '#667eea';
+            document.getElementById('btn-current').style.boxShadow = 'none';
+          } else {
+            document.getElementById('calendar-current').style.display = 'block';
+            document.getElementById('btn-current').classList.add('active');
+            document.getElementById('btn-current').style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            document.getElementById('btn-current').style.color = 'white';
+            document.getElementById('btn-current').style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.3)';
+            document.getElementById('btn-prev').style.background = '#f8f9fa';
+            document.getElementById('btn-prev').style.color = '#667eea';
+            document.getElementById('btn-prev').style.boxShadow = 'none';
+            document.getElementById('btn-next').style.background = '#f8f9fa';
+            document.getElementById('btn-next').style.color = '#667eea';
+            document.getElementById('btn-next').style.boxShadow = 'none';
+          }
+        }
     </script>
+    
+    <!-- Снежинки -->
+    <div class="snowflake">❄</div>
+    <div class="snowflake">❅</div>
+    <div class="snowflake">❆</div>
+    <div class="snowflake">❄</div>
+    <div class="snowflake">❅</div>
+    <div class="snowflake">❆</div>
+    <div class="snowflake">❄</div>
+    <div class="snowflake">❅</div>
+    <div class="snowflake">❆</div>
+    <div class="snowflake">❄</div>
+    <div class="snowflake">❅</div>
+    <div class="snowflake">❆</div>
+    <div class="snowflake">❄</div>
+    <div class="snowflake">❅</div>
+    <div class="snowflake">❆</div>
+    <div class="snowflake">❄</div>
+    <div class="snowflake">❅</div>
+    <div class="snowflake">❆</div>
+    <div class="snowflake">❄</div>
+    <div class="snowflake">❅</div>
   </body>
 </html>
